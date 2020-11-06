@@ -6487,12 +6487,43 @@ td::Status Client::process_edit_message_reply_markup_query(PromisedQueryPtr &que
 td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
   auto chat_id = query->arg("chat_id");
   auto message_id = get_message_id(query.get());
+  auto is_messages_array = query->has_arg("message_ids");
 
   if (chat_id.empty()) {
     return Status::Error(400, "Chat identifier is not specified");
   }
 
-  if (message_id == 0) {
+  if (is_messages_array) {
+    auto message_ids = json_decode(query->arg("message_ids"));
+
+    if (message_ids.is_error()) {
+      return Status::Error(400, "Can't parse message_ids to JSON array");
+    }
+
+    auto value = message_ids.move_as_ok();
+    if (value.type() != JsonValue::Type::Array) {
+      return Status::Error(400, "Field \"message_ids\" must be an Array");
+    }
+
+    if (value.get_array().empty()) {
+      return Status::Error(400, "Array should not be empty");
+    }
+
+    auto chat_id_int = td::to_integer<int64>(chat_id);
+    td::vector<int64> messages_array = {};
+
+    for (auto &msg_id : value.get_array()) {
+      if (msg_id.type() == JsonValue::Type::Number) {
+        messages_array.push_back(as_tdlib_message_id(td::to_integer<int64>(msg_id.get_number())));
+      } else {
+        return Status::Error(400, "Array must be numeric");
+      }
+    }
+
+    send_request(make_object<td_api::deleteMessages>(chat_id_int, std::move(messages_array), true),
+                 std::make_unique<TdOnOkQueryCallback>(std::move(query)));
+    return Status::OK();
+  } else if (message_id == 0) {
     return Status::Error(400, "Message identifier is not specified");
   }
 
