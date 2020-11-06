@@ -597,7 +597,8 @@ class Client::JsonChat : public Jsonable {
           object("permissions", JsonChatPermissions(permissions));
         }
         auto everyone_is_administrator = permissions->can_send_messages_ && permissions->can_send_media_messages_ &&
-                                         permissions->can_send_polls_ && permissions->can_send_other_messages_ &&
+                                         permissions->can_send_polls_ && 
+                                         permissions->can_send_stickers_ && permissions->can_send_animations_ && permissions->can_send_games_ && permissions->can_use_inline_bots_ &&
                                          permissions->can_add_web_page_previews_ && permissions->can_change_info_ &&
                                          permissions->can_invite_users_ && permissions->can_pin_messages_;
         object("all_members_are_administrators", td::JsonBool(everyone_is_administrator));
@@ -5521,7 +5522,10 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
   auto can_send_messages = false;
   auto can_send_media_messages = false;
   auto can_send_polls = false;
-  auto can_send_other_messages = false;
+  auto can_send_stickers = false;
+  auto can_send_animations = false;
+  auto can_send_games = false;
+  auto can_use_inline_bots = false;
   auto can_add_web_page_previews = false;
   auto can_change_info = false;
   auto can_invite_users = false;
@@ -5546,7 +5550,10 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
       TRY_RESULT_ASSIGN(can_send_messages, get_json_object_bool_field(object, "can_send_messages"));
       TRY_RESULT_ASSIGN(can_send_media_messages, get_json_object_bool_field(object, "can_send_media_messages"));
       TRY_RESULT_ASSIGN(can_send_polls, get_json_object_bool_field(object, "can_send_polls"));
-      TRY_RESULT_ASSIGN(can_send_other_messages, get_json_object_bool_field(object, "can_send_other_messages"));
+      TRY_RESULT_ASSIGN(can_send_stickers, get_json_object_bool_field(object, "can_send_stickers"));
+      TRY_RESULT_ASSIGN(can_send_animations, get_json_object_bool_field(object, "can_send_animations"));
+      TRY_RESULT_ASSIGN(can_send_games, get_json_object_bool_field(object, "can_send_games"));
+      TRY_RESULT_ASSIGN(can_use_inline_bots, get_json_object_bool_field(object, "can_use_inline_bots"));
       TRY_RESULT_ASSIGN(can_add_web_page_previews, get_json_object_bool_field(object, "can_add_web_page_previews"));
       TRY_RESULT_ASSIGN(can_change_info, get_json_object_bool_field(object, "can_change_info"));
       TRY_RESULT_ASSIGN(can_invite_users, get_json_object_bool_field(object, "can_invite_users"));
@@ -5562,27 +5569,32 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
 
     can_send_messages = to_bool(query->arg("can_send_messages"));
     can_send_media_messages = to_bool(query->arg("can_send_media_messages"));
-    can_send_other_messages = to_bool(query->arg("can_send_other_messages"));
+    can_send_stickers = to_bool(query->arg("can_send_stickers"));
+    can_send_animations = to_bool(query->arg("can_send_animations"));
+    can_send_games = to_bool(query->arg("can_send_games"));
+    can_use_inline_bots = to_bool(query->arg("can_use_inline_bots"));
     can_add_web_page_previews = to_bool(query->arg("can_add_web_page_previews"));
 
-    if (can_send_messages && can_send_media_messages && can_send_other_messages && can_add_web_page_previews) {
-      // legacy unrestrict
-      can_send_polls = true;
-      can_change_info = true;
-      can_invite_users = true;
-      can_pin_messages = true;
-    } else if (query->has_arg("can_send_messages") || query->has_arg("can_send_media_messages") ||
-               query->has_arg("can_send_other_messages") || query->has_arg("can_add_web_page_previews")) {
-      allow_legacy = true;
-    }
+//    if (can_send_messages && can_send_media_messages && can_send_stickers && can_send_animations && can_send_games && can_use_inline_bots && can_add_web_page_previews) {
+//      // legacy unrestrict
+//      can_send_polls = true;
+//      can_change_info = true;
+//      can_invite_users = true;
+//      can_pin_messages = true;
+//    } else if (query->has_arg("can_send_messages") || query->has_arg("can_send_media_messages") ||
+//                query->has_arg("can_send_stickers") || query->has_arg("can_send_animations") ||
+//                query->has_arg("can_send_games") || query->has_arg("can_use_inline_bots") ||
+//                query->has_arg("can_add_web_page_previews")) {
+//      allow_legacy = true;
+//    }
   }
 
-  if (can_send_other_messages || can_add_web_page_previews) {
-    can_send_media_messages = true;
-  }
+//  if (can_send_stickers || can_send_animations || can_send_games || can_use_inline_bots || can_add_web_page_previews) {
+//    can_send_media_messages = true;
+//  }
   return make_object<td_api::chatPermissions>(can_send_messages, can_send_media_messages, can_send_polls,
-                                              can_send_other_messages, can_add_web_page_previews, can_change_info,
-                                              can_invite_users, can_pin_messages);
+                                              can_send_stickers, can_send_animations, can_send_games, can_use_inline_bots, 
+                                              can_add_web_page_previews, can_change_info, can_invite_users, can_pin_messages);
 }
 
 td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_media(const Query *query,
@@ -7953,7 +7965,10 @@ void Client::json_store_permissions(td::JsonObjectScope &object, const td_api::c
   object("can_send_messages", td::JsonBool(permissions->can_send_messages_));
   object("can_send_media_messages", td::JsonBool(permissions->can_send_media_messages_));
   object("can_send_polls", td::JsonBool(permissions->can_send_polls_));
-  object("can_send_other_messages", td::JsonBool(permissions->can_send_other_messages_));
+  object("can_send_stickers", td::JsonBool(permissions->can_send_stickers_));
+  object("can_send_animations", td::JsonBool(permissions->can_send_animations_));
+  object("can_send_games", td::JsonBool(permissions->can_send_games_));
+  object("can_use_inline_bots", td::JsonBool(permissions->can_use_inline_bots_));
   object("can_add_web_page_previews", td::JsonBool(permissions->can_add_web_page_previews_));
   object("can_change_info", td::JsonBool(permissions->can_change_info_));
   object("can_invite_users", td::JsonBool(permissions->can_invite_users_));
