@@ -3794,8 +3794,8 @@ void Client::on_update_authorization_state() {
       parameters->api_id_ = parameters_->api_id_;
       parameters->api_hash_ = parameters_->api_hash_;
       parameters->system_language_code_ = "en";
-      parameters->device_model_ = "server";
-      parameters->application_version_ = "5.0";
+      parameters->device_model_ = "Husky Bot API Server";
+      parameters->application_version_ = "1.0";
       parameters->enable_storage_optimizer_ = true;
       parameters->ignore_file_names_ = true;
 
