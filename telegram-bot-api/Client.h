@@ -61,7 +61,7 @@ class Client : public WebhookActor::Callback {
   static constexpr bool USE_MESSAGE_DATABASE = false;
 
   static constexpr int32 MAX_CERTIFICATE_FILE_SIZE = 3 << 20;
-  static constexpr int32 MAX_DOWNLOAD_FILE_SIZE = 20 << 20;
+  static constexpr int32 MAX_DOWNLOAD_FILE_SIZE = 2000 << 20;
 
   static constexpr int32 MESSAGES_CACHE_TIME = 3600;
 
