@@ -32,6 +32,11 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target install
 ```
 
+__MSVC (Multi-processor Compilation)__
+```
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<path to vcpkg>/scripts/buildsystems/vcpkg.cmake -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ..
+```
+
 <a name="dependencies"></a>
 ## Dependencies
 To build and run `Telegram Bot API server` you will need:
