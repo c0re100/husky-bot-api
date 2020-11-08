@@ -1,4 +1,4 @@
-# Telegram Bot API
+# Telegram Bot API (Husky Version)
 
 The Telegram Bot API provides an HTTP API for creating [Telegram Bots](https://core.telegram.org/bots).
 
@@ -24,8 +24,8 @@ If you do that, you'll only need to choose the target operating system to receiv
 In general, you need to install all `Telegram Bot API server` [dependencies](#dependencies) and compile the source code using CMake:
 
 ```
-git clone --recursive https://github.com/tdlib/telegram-bot-api.git
-cd telegram-bot-api
+git clone --recursive https://github.com/c0re100/husky-bot-api-server.git
+cd husky-bot-api-server
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
