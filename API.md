@@ -28,6 +28,8 @@ Cause `can_send_other_messages` combine several permissions.
 
 So Husky Bot API exposes `can_send_other_messages` and allow you restrict a group or a member to send stickers, animations, games or inline messages.
 
+__Affected API__: [setChatPermissions](setChatPermissions), [restrictChatMember](https://core.telegram.org/bots/api#restrictchatmember)
+
 _Chat Permission List_
 
 | Field                     | Type    | Description                                                                                                              |
