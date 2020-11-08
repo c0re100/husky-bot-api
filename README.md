@@ -1,5 +1,15 @@
 # Telegram Bot API (Husky Version)
 
+---
+
+**Husky Bot API is still at the draft stage.**
+
+**Production is not ready yet, please don't try it on production :)**
+
+**You may experience unexpected result during operation.**
+
+---
+
 The Telegram Bot API provides an HTTP API for creating [Telegram Bots](https://core.telegram.org/bots).
 
 If you've got any questions about bots or would like to report an issue with your bot, kindly contact us at [@BotSupport](https://t.me/BotSupport) in Telegram.
