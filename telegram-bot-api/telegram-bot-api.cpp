@@ -321,7 +321,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!working_directory.empty()) {
-      TRY_STATUS_PREFIX(td::mkpath(working_directory), "Can't create working directory: ");
+      TRY_STATUS_PREFIX(td::set_temporary_dir(working_directory), "Can't create working directory: ");
       TRY_STATUS_PREFIX(td::chdir(working_directory), "Can't set working directory: ");
     }
 
