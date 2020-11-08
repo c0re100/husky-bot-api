@@ -6,7 +6,19 @@
 
 **Production is not ready yet, please don't try it on production :)**
 
-**You may experience unexpected result during operation.**
+**You may experience any unexpected result during operation.**
+
+**Use at your own risk.**
+
+[New API docs](API.md) - Update: 8/11/2020
+
+---
+
+### Q&A
+
+Q: What is the difference between Official Bot API and Husky Bot API?
+
+A: Husky Bot API have few Official API changes or Implement new API in the future :D
 
 ---
 
