@@ -6514,7 +6514,7 @@ td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
 
     for (auto &msg_id : value.get_array()) {
       if (msg_id.type() == JsonValue::Type::Number) {
-        messages_array.push_back(as_tdlib_message_id(td::to_integer<int64>(msg_id.get_number())));
+        messages_array.push_back(as_tdlib_message_id(td::to_integer<int32>(msg_id.get_number())));
       } else {
         return Status::Error(400, "Array must be numeric");
       }
