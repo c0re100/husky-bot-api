@@ -50,9 +50,9 @@ td::vector<StatItem> CpuStat::as_vector() const {
     auto total_ticks = last_.total_ticks_ - first_.total_ticks_;
     auto user_ticks = last_.process_user_ticks_ - first_.process_user_ticks_;
     auto system_ticks = last_.process_system_ticks_ - first_.process_system_ticks_;
-    res.push_back({"total_cpu", to_percentage(user_ticks + system_ticks, total_ticks)});
-    res.push_back({"user_cpu", to_percentage(user_ticks, total_ticks)});
-    res.push_back({"system_cpu", to_percentage(system_ticks, total_ticks)});
+    res.push_back({"total_cpu", "<td>"+to_percentage(user_ticks + system_ticks, total_ticks)+"</td>"});
+    res.push_back({"user_cpu", "<td>"+to_percentage(user_ticks, total_ticks)+"</td>"});
+    res.push_back({"system_cpu", "<td>"+to_percentage(system_ticks, total_ticks)+"</td>"});
   }
   return res;
 }
@@ -65,7 +65,6 @@ td::vector<StatItem> ServerCpuStat::as_vector(double now) {
     auto other = stat_[i].get_stat(now).as_vector();
     CHECK(other.size() == res.size());
     for (size_t j = 0; j < res.size(); j++) {
-      res[j].value_ += "\t";
       res[j].value_ += other[j].value_;
     }
   }
@@ -127,25 +126,31 @@ td::vector<StatItem> BotStatActor::as_vector(double now) {
   auto first_sd = stat_[0].stat_duration(now);
   first_sd.first.normalize(first_sd.second);
   td::vector<StatItem> res = first_sd.first.as_vector();
+  for (auto & re : res) {
+    re.value_ = "<td>" + re.value_ + "</td>";
+  }
   for (std::size_t i = 1; i < SIZE; i++) {
     auto next_sd = stat_[i].stat_duration(now);
     next_sd.first.normalize(next_sd.second);
     auto other = next_sd.first.as_vector();
     CHECK(other.size() == res.size());
     for (size_t j = 0; j < res.size(); j++) {
-      res[j].value_ += "\t";
+      res[j].value_ += "<td>";
       res[j].value_ += other[j].value_;
+      res[j].value_ += "</td>";
     }
   }
   return res;
 }
 
 td::string BotStatActor::get_description() const {
-  td::string res = "DURATION";
+  td::string res = "<th>DURATION</th>";
   for (auto &descr : DESCR) {
-    res += "\t";
+    res += "<th>";
     res += descr;
+    res += "</th>";
   }
+  res += "</tr>";
   return res;
 }
 

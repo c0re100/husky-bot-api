@@ -188,18 +188,33 @@ void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
     top_bot_ids.emplace(static_cast<td::int64>(score * 1e9), id);
   }
 
+  td::string style = "<style>\n"
+      "table {\n"
+      "  width: 1px;\n"
+      "  border-collapse: collapse;\n"
+      "  white-space: nowrap;\n"
+      "}\n"
+      "\n"
+      "td, th {\n"
+      "  border: 1px solid #dddddd;\n"
+      "  text-align: left;\n"
+      "  padding: 8px;\n"
+      "}\n"
+      "</style>";
+
+  sb << style << "<table><tr>";
   sb << stat_.get_description() << "\n";
   if (id_filter.empty()) {
-    sb << "uptime\t" << now - parameters_->start_timestamp_ << "\n";
-    sb << "bot_count\t" << clients_.size() << "\n";
-    sb << "active_bot_count\t" << active_bot_count << "\n";
+    sb << "<tr><td>uptime</td><td>" << now - parameters_->start_timestamp_ << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>bot_count</td><td>" << clients_.size() << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_bot_count</td><td>" << active_bot_count << "</td><td></td><td></td><td></td></tr>\n";
     auto r_mem_stat = td::mem_stat();
     if (r_mem_stat.is_ok()) {
       auto mem_stat = r_mem_stat.move_as_ok();
-      sb << "rss\t" << td::format::as_size(mem_stat.resident_size_) << "\n";
-      sb << "vm\t" << td::format::as_size(mem_stat.virtual_size_) << "\n";
-      sb << "rss_peak\t" << td::format::as_size(mem_stat.resident_size_peak_) << "\n";
-      sb << "vm_peak\t" << td::format::as_size(mem_stat.virtual_size_peak_) << "\n";
+      sb << "<tr><td>rss</td><td>" << td::format::as_size(mem_stat.resident_size_) << "</td><td></td><td></td><td></td></tr>\n";
+      sb << "<tr><td>vm</td><td>" << td::format::as_size(mem_stat.virtual_size_) << "</td><td></td><td></td><td></td></tr>\n";
+      sb << "<tr><td>rss_peak</td><td>" << td::format::as_size(mem_stat.resident_size_peak_) << "</td><td></td><td></td><td></td></tr>\n";
+      sb << "<tr><td>vm_peak</td><td>" << td::format::as_size(mem_stat.virtual_size_peak_) << "</td><td></td><td></td><td></td></tr>\n";
     } else {
       LOG(INFO) << "Failed to get memory statistics: " << r_mem_stat.error();
     }
@@ -207,40 +222,45 @@ void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
     ServerCpuStat::update(td::Time::now());
     auto cpu_stats = ServerCpuStat::instance().as_vector(td::Time::now());
     for (auto &stat : cpu_stats) {
-      sb << stat.key_ << "\t" << stat.value_ << "\n";
+      sb << "<tr><td>" << stat.key_ << "</td>" << stat.value_ << "</tr>";
     }
 
-    sb << "buffer_memory\t" << td::format::as_size(td::BufferAllocator::get_buffer_mem()) << "\n";
-    sb << "active_webhook_connections\t" << WebhookActor::get_total_connections_count() << "\n";
-    sb << "active_requests\t" << parameters_->shared_data_->query_count_.load() << "\n";
-    sb << "active_network_queries\t" << td::get_pending_network_query_count(*parameters_->net_query_stats_) << "\n";
+    sb << "<tr><td>buffer_memory</td><td>" << td::format::as_size(td::BufferAllocator::get_buffer_mem()) << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_webhook_connections</td><td>" << WebhookActor::get_total_connections_count() << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_requests</td><td>" << parameters_->shared_data_->query_count_.load() << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_network_queries</td><td>" << td::get_pending_network_query_count(*parameters_->net_query_stats_) << "</td><td></td><td></td><td></td></tr>\n";
     auto stats = stat_.as_vector(now);
     for (auto &stat : stats) {
-      sb << stat.key_ << "\t" << stat.value_ << "\n";
+      sb << "<tr><td>" << stat.key_ << "</td>" << stat.value_ << "</tr>";
     }
   }
+
+  sb << "</table>";
+  sb << "<br/><br/>";
+  sb << "<table><tr>";
+  sb << "<th>Name</th><th>Value</th>";
+  sb << "<th>5sec</th><th>1min</th><th>1hour</th>";
 
   for (auto top_bot_id : top_bot_ids) {
     auto *client_info = clients_.get(top_bot_id.second);
     CHECK(client_info);
 
     auto bot_info = client_info->client_->get_actor_unsafe()->get_bot_info();
-    sb << "\n";
-    sb << "id\t" << bot_info.id_ << "\n";
-    sb << "uptime\t" << now - bot_info.start_timestamp_ << "\n";
-    sb << "token\t" << bot_info.token_ << "\n";
-    sb << "username\t" << bot_info.username_ << "\n";
-    sb << "webhook\t" << bot_info.webhook_ << "\n";
-    sb << "has_custom_certificate\t" << bot_info.has_webhook_certificate_ << "\n";
-    sb << "head_update_id\t" << bot_info.head_update_id_ << "\n";
-    sb << "tail_update_id\t" << bot_info.tail_update_id_ << "\n";
-    sb << "pending_update_count\t" << bot_info.pending_update_count_ << "\n";
-    sb << "webhook_max_connections\t" << bot_info.webhook_max_connections_ << "\n";
+    sb << "<tr><td>id</td><td>" << bot_info.id_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>uptime</td><td>" << now - bot_info.start_timestamp_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>token</td><td>" << bot_info.token_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>username</td><td>" << bot_info.username_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>webhook</td><td>" << bot_info.webhook_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>has_custom_certificate</td><td>" << bot_info.has_webhook_certificate_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>head_update_id</td><td>" << bot_info.head_update_id_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>tail_update_id</td><td>" << bot_info.tail_update_id_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>pending_update_count</td><td>" << bot_info.pending_update_count_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>webhook_max_connections</td><td>" << bot_info.webhook_max_connections_ << "</td><td></td><td></td><td></td></tr>";
 
     auto stats = client_info->stat_.as_vector(now);
     for (auto &stat : stats) {
       if (stat.key_ == "update_count" || stat.key_ == "request_count") {
-        sb << stat.key_ << "/sec\t" << stat.value_ << "\n";
+        sb << "<tr><td>" << stat.key_ << "/sec</td>" << stat.value_ << "</tr>";
       }
     }
 
@@ -248,6 +268,7 @@ void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
       break;
     }
   }
+  sb << "</table>";
   // ignore sb overflow
   promise.set_value(td::BufferSlice(sb.as_cslice()));
 }
