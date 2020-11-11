@@ -10,7 +10,7 @@
 
 **Use at your own risk.**
 
-[New API docs](API.md) - Update: 8/11/2020
+[New API docs](API.md) - Update: 12/11/2020
 
 ---
 

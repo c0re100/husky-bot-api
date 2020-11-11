@@ -1,6 +1,10 @@
 # API docs
 
-Public API Endpoint: Work In Progress...
+Public API Endpoint: https://api.trashgr.am/
+
+Thanks to our server sponsor [@licson](https://github.com/licson).
+
+---
 
 First, if you want to use this API without error, you need to modify your Bot API library source code.
 
@@ -11,7 +15,10 @@ Allow bot developer to delete multiple messages
 | Name        | Type              | Required? | Description                                                                                              |
 |-------------|-------------------|-----------|----------------------------------------------------------------------------------------------------------|
 | chat_id     | Integer or String | Yes       | Unique identifier for the target chat or username of the target channel (in the format @channelusername) |
-| message_ids | Array of int32    | Yes       | Identifier of the message to delete                                                                      |
+| message_id  | Integer           | Yes/No*   | Identifier of the message to delete                                                                      |
+| message_ids | Array of Integer  | Optional  | Identifiers of the message to delete                                                                     |
+
+**If you want to delete multiple messages, leave `message_id` empty and fill the `message_ids` field.*
 
 ### [ChatPermission](https://core.telegram.org/bots/api#chatpermissions) 
 
