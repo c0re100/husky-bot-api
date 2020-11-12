@@ -2033,6 +2033,15 @@ class Client::JsonChatMember : public Jsonable {
     auto object = scope->enter_object();
     object("user", JsonUser(member_->user_id_, client_));
     object("status", Client::get_chat_member_status(member_->status_));
+    object("join_date", member_->joined_chat_date_);
+    if (member_->inviter_user_id_ > 0) {
+      // It can be "invite_by", "promote_by" or "restrict_by".
+      // Invite by: someone added a user to group.
+      // Promote by: someone promoted a user to admin role.
+      // Restrict by: someone restricted a user.
+      // But Telegram decided to use inviter_user_id, so this field name is "invite_by".
+      object("invite_by", JsonUser(member_->inviter_user_id_, client_));
+    }
     switch (member_->status_->get_id()) {
       case td_api::chatMemberStatusCreator::ID: {
         auto creator = static_cast<const td_api::chatMemberStatusCreator *>(member_->status_.get());
