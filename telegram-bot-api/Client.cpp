@@ -2119,9 +2119,9 @@ class Client::JsonChatMembers : public Jsonable {
           is_member_bot = true;
         }
       }
-      if (is_member_bot && member->user_id_ != client_->my_id_) {
-        continue;
-      }
+//      if (is_member_bot && member->user_id_ != client_->my_id_) {
+//        continue;
+//      }
       if (administrators_only_) {
         auto status = Client::get_chat_member_status(member->status_);
         if (status != "creator" && status != "administrator") {
