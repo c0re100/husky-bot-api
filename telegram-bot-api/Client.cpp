@@ -250,6 +250,7 @@ bool Client::init_methods() {
   methods_.emplace("getwebhookinfo", &Client::process_get_webhook_info_query);
   methods_.emplace("getfile", &Client::process_get_file_query);
   methods_.emplace("getmessage", &Client::process_get_message_query);
+  methods_.emplace("getchatmembers", &Client::process_get_chat_members_query);
   return true;
 }
 
@@ -7331,6 +7332,55 @@ td::Status Client::process_get_message_query(PromisedQueryPtr &query) {
     answer_query(JsonMessage(message, false, "get message", this), std::move(query));
   });
 
+  return Status::OK();
+}
+
+td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
+  auto chat_id = query->arg("chat_id");
+
+  check_chat(chat_id, AccessRights::Read, std::move(query), [this](int64 chat_id, PromisedQueryPtr query) {
+    auto chat_info = get_chat(chat_id);
+    CHECK(chat_info != nullptr);
+
+    switch (chat_info->type) {
+      case ChatInfo::Type::Private:
+        return fail_query(400, "Bad Request: there are no administrators in the private chat", std::move(query));
+      case ChatInfo::Type::Group: {
+        auto group_info = get_group_info(chat_info->group_id);
+        CHECK(group_info != nullptr);
+        return send_request(make_object<td_api::getBasicGroupFullInfo>(chat_info->group_id),
+                            std::make_unique<TdOnGetGroupMembersCallback>(this, false, std::move(query)));
+      }
+      case ChatInfo::Type::Supergroup: {
+        auto offset = get_integer_arg(query.get(), "offset", 0);
+        auto limit = get_integer_arg(query.get(), "limit", 200, 1, 200);
+        td_api::object_ptr<td_api::SupergroupMembersFilter> filter;
+
+        if (query->has_arg("type")) {
+          auto type = td::to_integer<int32>(query->arg("type"));
+          if (type == 1) {
+            filter = td_api::make_object<td_api::supergroupMembersFilterAdministrators>();
+          } else if (type == 2) {
+            filter = td_api::make_object<td_api::supergroupMembersFilterBanned>();
+          } else if (type == 3) {
+            filter = td_api::make_object<td_api::supergroupMembersFilterRestricted>();
+          } else if (type == 4) {
+            filter = td_api::make_object<td_api::supergroupMembersFilterBots>();
+          } else {
+            filter = td_api::make_object<td_api::supergroupMembersFilterRecent>();
+          }
+        }
+
+        return send_request(
+            make_object<td_api::getSupergroupMembers>(
+                chat_info->supergroup_id, std::move(filter), offset, limit),
+            std::make_unique<TdOnGetSupergroupMembersCallback>(this, get_chat_type(chat_id), std::move(query)));
+      }
+      case ChatInfo::Type::Unknown:
+      default:
+        UNREACHABLE();
+    }
+  });
   return Status::OK();
 }
 
