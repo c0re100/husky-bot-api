@@ -471,6 +471,7 @@ class Client : public WebhookActor::Callback {
   Status process_set_webhook_query(PromisedQueryPtr &query);
   Status process_get_webhook_info_query(PromisedQueryPtr &query);
   Status process_get_file_query(PromisedQueryPtr &query);
+  Status process_get_message_query(PromisedQueryPtr &query);
 
   void webhook_verified(td::string cached_ip_address) override;
   void webhook_success() override;
