@@ -24,7 +24,7 @@ If you want to use this API without error, you need to modify your Bot API libra
 
 ---
 
-### Chat Permissions ###
+## Chat Permissions ##
 
 As we know, Official Bot API have 8 permissions field.
 
@@ -41,7 +41,7 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 
 **Affected API**: [setChatPermissions](https://core.telegram.org/bots/api#setchatpermissions), [restrictChatMember](https://core.telegram.org/bots/api#restrictchatmember)
 
-*Chat Permissions List*
+*New Chat Permissions List*
 
 | Parameter                   | Type    | Description                                                                                                              |
 | --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -59,7 +59,7 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 | **Compatibility**           |         |                                                                                                                          |
 | `can_send_other_messages`   | Boolean | Optional. If you don't need to restrict `stickers`, `animations`, `games` and `inline bots`.                             |
 
-### Chat Member ###
+## Chat Member ##
 
 `ChatMember` now has 2 new field.
 
@@ -78,7 +78,7 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 
 ---
 
-### Delete messages ###
+## Delete messages ##
 
 Name: `deleteMessage`
 
@@ -103,7 +103,7 @@ If field `message_ids` filled, API will return `true` as always, even the messag
 
 **If you want to delete multiple messages, leave `message_id` empty and fill the `message_ids` field.*
 
-### Get message ###
+## Get message ##
 
 Name: `getMessage`
 
@@ -125,7 +125,7 @@ Allow bot to get old message.
 
 The response is a `message` type.
 
-### Get chat members ###
+## Get chat members ##
 
 Name: `getChatMembers`
 
