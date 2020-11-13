@@ -1,8 +1,8 @@
-# Telegram Bot API (Husky Version)
+# Husky Bot API
 
 ---
 
-**Husky Bot API is still at the draft stage.**
+**Husky Bot API is still at the test stage.**
 
 **Production is not ready yet, please don't try it on production :)**
 
@@ -10,15 +10,17 @@
 
 **Use at your own risk.**
 
-[New API docs](API.md) - Update: 12/11/2020
-
 ---
 
 ### Q&A
 
-Q: What is the difference between Official Bot API and Husky Bot API?
+Q: **What is the difference between Official Bot API and Husky Bot API?**
 
-A: Husky Bot API have few Official API changes or Implement new API in the future :D
+A: *Husky Bot API have few Official API changes or Implement new API in the future :D*
+
+Q: **Where can I find API documentation?**
+
+A: *[API documentation](API.md) - Update: 13/11/2020*
 
 ---
 
