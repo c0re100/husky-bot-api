@@ -9170,4 +9170,3 @@ constexpr Client::Slice Client::CLOSING_ERROR_DESCRIPTION;
 std::unordered_map<td::string, td::Status (Client::*)(PromisedQueryPtr &query)> Client::methods_;
 
 }  // namespace telegram_bot_api
-  
