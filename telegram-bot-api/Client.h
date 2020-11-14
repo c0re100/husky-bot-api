@@ -123,6 +123,7 @@ class Client : public WebhookActor::Callback {
   class JsonMessage;
   class JsonMessages;
   class JsonDeletedMessage;
+  class JsonDeletedMessages;
   class JsonMessageId;
   class JsonInlineQuery;
   class JsonChosenInlineResult;
@@ -744,6 +745,7 @@ class Client : public WebhookActor::Callback {
   enum class UpdateType : int32 {
     Message,
     EditedMessage,
+    DeleteMessage,
     ChannelPost,
     EditedChannelPost,
     InlineQuery,

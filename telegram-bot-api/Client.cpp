@@ -1780,6 +1780,24 @@ class Client::JsonDeletedMessage : public Jsonable {
   const Client *client_;
 };
 
+class Client::JsonDeletedMessages : public Jsonable {
+ public:
+  JsonDeletedMessages(int64 chat_id, td::vector<int64> message_ids, const Client *client)
+      : chat_id_(chat_id), message_ids_(message_ids), client_(client) {
+  }
+  void store(JsonValueScope *scope) const {
+    auto object = scope->enter_object();
+    object("message_ids", td::json_array(message_ids_, [](int64 message_id) { return as_client_message_id(message_id); }));
+    object("chat", JsonChat(chat_id_, false, client_));
+    object("date", 0);
+  }
+
+ private:
+  int64 chat_id_;
+  td::vector<int64> message_ids_;
+  const Client *client_;
+};
+
 class Client::JsonMessageId : public Jsonable {
  public:
   explicit JsonMessageId(int64 message_id) : message_id_(message_id) {
@@ -3931,6 +3949,7 @@ void Client::on_update(object_ptr<td_api::Object> result) {
       for (auto message_id : update->message_ids_) {
         delete_message(update->chat_id_, message_id, update->from_cache_);
       }
+      add_update(UpdateType::DeleteMessage, JsonDeletedMessages(update->chat_id_, std::move(update->message_ids_), this), 86400, update->chat_id_);
       break;
     }
     case td_api::updateFile::ID: {
@@ -8099,6 +8118,8 @@ Client::Slice Client::get_update_type_name(UpdateType update_type) {
       return Slice("message");
     case UpdateType::EditedMessage:
       return Slice("edited_message");
+    case UpdateType::DeleteMessage:
+      return Slice("deleted_messages");
     case UpdateType::ChannelPost:
       return Slice("channel_post");
     case UpdateType::EditedChannelPost:
