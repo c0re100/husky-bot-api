@@ -8062,6 +8062,7 @@ void Client::json_store_file(td::JsonObjectScope &object, const td_api::file *fi
       }
     }
   }
+  object("file_dc_id", file->dc_id_);
 }
 
 void Client::json_store_thumbnail(td::JsonObjectScope &object, const td_api::thumbnail *thumbnail) const {
