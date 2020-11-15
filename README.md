@@ -20,7 +20,7 @@ A: *Husky Bot API have few Official API changes or Implement new API in the futu
 
 Q: **Where can I find API documentation?**
 
-A: *[API documentation](API.md) - Update: 13/11/2020*
+A: *[API documentation](API.md) - Update: 16/11/2020*
 
 ---
 

@@ -18,6 +18,9 @@ If you want to use this API without error, you need to modify your Bot API libra
    1. [Chat Permissions](#chat-permissions)
    2. [Chat Member](#chat-member)
    3. [User](#user)
+   4. [File](#file)
+   5. [Update Type](#update-type)
+        1. [deleted_messages](#deleted_messages)
 2. [Delete messages](#delete-messages)
 3. [Get message](#get-message)
 4. [Get chat members](#get-chat-members)
@@ -75,6 +78,29 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 | Property     | Type    | Description                            |
 | ------------ | ------- | -------------------------------------- |
 | `is_deleted` | Boolean | True, if this user account is deleted. |
+
+### File ###
+
+`File` now has 1 new field.
+
+| Property     | Type    | Description                           |
+| ------------ | ------- | ------------------------------------- |
+| `file_dc_id` | Integer | File data center ID                   |
+|              |         | ID => location                        |
+|              |         | 1, 3 => Miami, Florida, United States |
+|              |         | 2, 4 => Amsterdam, Netherlands        |
+|              |         | 5 => Singapore                        |
+
+### Update Type ###
+
+Update Type now has 1 new type.
+
+### `deleted_messages` ###
+
+| Property      | Type             | Description |
+| ------------- | ---------------- | ----------- |
+| `chat`        | Chat             | Chat info   |
+| `message_ids` | Array of Integer | Messages ID |
 
 ---
 
