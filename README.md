@@ -2,13 +2,9 @@
 
 ---
 
-**Husky Bot API is still at the test stage.**
+**Status:** *production ready*
 
-**Production is not ready yet, please don't try it on production :)**
-
-**You may experience any unexpected result during operation.**
-
-**Use at your own risk.**
+**You're safe to use that Bot API on production.**
 
 ---
 
