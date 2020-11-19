@@ -8111,6 +8111,11 @@ void Client::json_store_permissions(td::JsonObjectScope &object, const td_api::c
   object("can_change_info", td::JsonBool(permissions->can_change_info_));
   object("can_invite_users", td::JsonBool(permissions->can_invite_users_));
   object("can_pin_messages", td::JsonBool(permissions->can_pin_messages_));
+  if (permissions->can_send_stickers_ && permissions->can_send_animations_ && permissions->can_send_games_ && permissions->can_use_inline_bots_) {
+	  object("can_send_other_messages", td::JsonBool(true));
+  } else {
+	  object("can_send_other_messages", td::JsonBool(false));
+  }
 }
 
 Client::Slice Client::get_update_type_name(UpdateType update_type) {
