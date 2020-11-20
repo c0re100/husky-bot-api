@@ -534,6 +534,8 @@ class Client : public WebhookActor::Callback {
     td::string last_name;
     td::string username;
     td::string language_code;
+    bool is_verified;
+    bool is_scam;
 
     td::string bio;
 
@@ -573,6 +575,8 @@ class Client : public WebhookActor::Callback {
     bool is_supergroup = false;
     bool can_set_sticker_set = false;
     bool has_location = false;
+    bool is_verified = false;
+    bool is_scam = false;
   };
   static void add_supergroup(std::unordered_map<int32, SupergroupInfo> &supergroups,
                              object_ptr<td_api::supergroup> &&supergroup);
