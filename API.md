@@ -75,9 +75,11 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 
 `User` now has 1 new field.
 
-| Property     | Type    | Description                            |
-| ------------ | ------- | -------------------------------------- |
-| `is_deleted` | Boolean | True, if this user account is deleted. |
+| Property      | Type    | Description                             |
+| ------------- | ------- | --------------------------------------- |
+| `is_deleted`  | Boolean | True, if this user account is deleted.  |
+| `is_verified` | Boolean | True, if this user account is verified. |
+| `is_scam`     | Boolean | True, if this user account is scam.     |
 
 ### File ###
 
