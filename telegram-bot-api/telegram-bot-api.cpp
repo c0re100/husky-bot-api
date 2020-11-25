@@ -51,6 +51,7 @@
 #include <cstdlib>
 #include <memory>
 #include <tuple>
+#include <td/tdactor/td/actor/ConcurrentScheduler.h>
 
 namespace telegram_bot_api {
 
