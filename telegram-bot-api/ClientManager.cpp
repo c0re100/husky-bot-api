@@ -205,7 +205,7 @@ void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
   sb << style << "<table><tr>";
   sb << stat_.get_description() << "\n";
   if (id_filter.empty()) {
-    sb << "<tr><td>uptime</td><td>" << now - parameters_->start_timestamp_ << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>uptime</td><td>" << now - parameters_->start_time_ << "</td><td></td><td></td><td></td></tr>\n";
     sb << "<tr><td>bot_count</td><td>" << clients_.size() << "</td><td></td><td></td><td></td></tr>\n";
     sb << "<tr><td>active_bot_count</td><td>" << active_bot_count << "</td><td></td><td></td><td></td></tr>\n";
     auto r_mem_stat = td::mem_stat();
@@ -247,7 +247,7 @@ void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
 
     auto bot_info = client_info->client_->get_actor_unsafe()->get_bot_info();
     sb << "<tr><td>id</td><td>" << bot_info.id_ << "</td><td></td><td></td><td></td></tr>";
-    sb << "<tr><td>uptime</td><td>" << now - bot_info.start_timestamp_ << "</td><td></td><td></td><td></td></tr>";
+    sb << "<tr><td>uptime</td><td>" << now - bot_info.start_time_ << "</td><td></td><td></td><td></td></tr>";
     sb << "<tr><td>token</td><td>" << bot_info.token_ << "</td><td></td><td></td><td></td></tr>";
     sb << "<tr><td>username</td><td>" << bot_info.username_ << "</td><td></td><td></td><td></td></tr>";
     sb << "<tr><td>webhook</td><td>" << bot_info.webhook_ << "</td><td></td><td></td><td></td></tr>";
