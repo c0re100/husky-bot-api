@@ -3790,13 +3790,13 @@ void Client::on_update_file(object_ptr<td_api::file> file) {
   if (!is_file_being_downloaded(file_id)) {
     return;
   }
-  if (!parameters_->local_mode_ && file->local_->downloaded_size_ > MAX_DOWNLOAD_FILE_SIZE) {
-    if (file->local_->is_downloading_active_) {
-      send_request(make_object<td_api::cancelDownloadFile>(file_id, false),
-                   std::make_unique<TdOnCancelDownloadFileCallback>());
-    }
-    return on_file_download(file_id, Status::Error(400, "Bad Request: file is too big"));
-  }
+//  if (!parameters_->local_mode_ && file->local_->downloaded_size_ > MAX_DOWNLOAD_FILE_SIZE) {
+//    if (file->local_->is_downloading_active_) {
+//      send_request(make_object<td_api::cancelDownloadFile>(file_id, false),
+//                   std::make_unique<TdOnCancelDownloadFileCallback>());
+//    }
+//    return on_file_download(file_id, Status::Error(400, "Bad Request: file is too big"));
+//  }
   if (file->local_->is_downloading_completed_) {
     return on_file_download(file_id, std::move(file));
   }
@@ -7431,10 +7431,10 @@ td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
 }
 
 void Client::do_get_file(object_ptr<td_api::file> file, PromisedQueryPtr query) {
-  if (!parameters_->local_mode_ &&
-      td::max(file->expected_size_, file->local_->downloaded_size_) > MAX_DOWNLOAD_FILE_SIZE) {  // speculative check
-    return fail_query(400, "Bad Request: file is too big", std::move(query));
-  }
+//  if (!parameters_->local_mode_ &&
+//      td::max(file->expected_size_, file->local_->downloaded_size_) > MAX_DOWNLOAD_FILE_SIZE) {  // speculative check
+//    return fail_query(400, "Bad Request: file is too big", std::move(query));
+//  }
 
   auto file_id = file->id_;
   file_download_listeners_[file_id].push_back(std::move(query));
@@ -8076,7 +8076,7 @@ void Client::json_store_file(td::JsonObjectScope &object, const td_api::file *fi
       }
     } else {
       Slice relative_path = td::PathView::relative(file->local_->path_, absolute_dir_, true);
-      if (!relative_path.empty() && file->local_->downloaded_size_ <= MAX_DOWNLOAD_FILE_SIZE) {
+      if (!relative_path.empty() /*&& file->local_->downloaded_size_ <= MAX_DOWNLOAD_FILE_SIZE*/) {
         object("file_path", relative_path);
       }
     }
