@@ -146,6 +146,7 @@ class Client : public WebhookActor::Callback {
   class JsonEncryptedCredentials;
   class JsonPassportData;
   class JsonProximityAlertTriggered;
+  class JsonVoiceChatScheduled;
   class JsonVoiceChatStarted;
   class JsonVoiceChatEnded;
   class JsonInviteVoiceChatParticipants;
@@ -211,8 +212,9 @@ class Client : public WebhookActor::Callback {
 
   struct UserInfo;
   struct ChatInfo;
+  struct BotCommandScope;
 
-  enum class AccessRights { Read, Edit, Write };
+  enum class AccessRights { Read, ReadMembers, Edit, Write };
 
   template <class OnSuccess>
   class TdOnCheckUserCallback;
@@ -247,6 +249,9 @@ class Client : public WebhookActor::Callback {
 
   template <class OnSuccess>
   void check_chat(Slice chat_id_str, AccessRights access_rights, PromisedQueryPtr query, OnSuccess on_success);
+
+  template <class OnSuccess>
+  void check_bot_command_scope(BotCommandScope &&scope, PromisedQueryPtr query, OnSuccess on_success);
 
   template <class OnSuccess>
   void check_remote_file_id(td::string file_id, PromisedQueryPtr query, OnSuccess on_success);
@@ -302,6 +307,8 @@ class Client : public WebhookActor::Callback {
 
   static td::Result<td::vector<object_ptr<td_api::labeledPricePart>>> get_labeled_price_parts(td::JsonValue &value);
 
+  static td::Result<td::vector<int64>> get_suggested_tip_amounts(td::JsonValue &value);
+
   static td::Result<object_ptr<td_api::shippingOption>> get_shipping_option(td::JsonValue &option);
 
   static td::Result<td::vector<object_ptr<td_api::shippingOption>>> get_shipping_options(const Query *query);
@@ -327,6 +334,21 @@ class Client : public WebhookActor::Callback {
   td::Result<td::vector<object_ptr<td_api::InputInlineQueryResult>>> get_inline_query_results(const Query *query);
 
   td::Result<td::vector<object_ptr<td_api::InputInlineQueryResult>>> get_inline_query_results(td::JsonValue &&value);
+
+  struct BotCommandScope {
+    object_ptr<td_api::BotCommandScope> scope_;
+    td::string chat_id_;
+    td::int32 user_id_ = 0;
+
+    explicit BotCommandScope(object_ptr<td_api::BotCommandScope> scope, td::string chat_id = td::string(),
+                             td::int32 user_id = 0)
+        : scope_(std::move(scope)), chat_id_(std::move(chat_id)), user_id_(user_id) {
+    }
+  };
+
+  static td::Result<BotCommandScope> get_bot_command_scope(const Query *query);
+
+  static td::Result<BotCommandScope> get_bot_command_scope(td::JsonValue &&value);
 
   static td::Result<object_ptr<td_api::botCommand>> get_bot_command(td::JsonValue &&value);
 
@@ -414,6 +436,7 @@ class Client : public WebhookActor::Callback {
   Status process_get_me_query(PromisedQueryPtr &query);
   Status process_get_my_commands_query(PromisedQueryPtr &query);
   Status process_set_my_commands_query(PromisedQueryPtr &query);
+  Status process_delete_my_commands_query(PromisedQueryPtr &query);
   Status process_get_user_profile_photos_query(PromisedQueryPtr &query);
   Status process_send_message_query(PromisedQueryPtr &query);
   Status process_send_animation_query(PromisedQueryPtr &query);
@@ -907,7 +930,6 @@ class Client : public WebhookActor::Callback {
   int64 current_bot_resolve_query_id_ = 1;
 
   td::string dir_;
-  td::string absolute_dir_;
   td::ActorOwn<td::ClientActor> td_client_;
   td::ActorContext context_;
   std::queue<PromisedQueryPtr> cmd_queue_;

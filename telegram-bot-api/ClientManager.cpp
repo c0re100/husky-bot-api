@@ -30,6 +30,7 @@
 #include "td/utils/port/IPAddress.h"
 #include "td/utils/port/Stat.h"
 #include "td/utils/Slice.h"
+#include "td/utils/SliceBuilder.h"
 #include "td/utils/StackAllocator.h"
 #include "td/utils/StringBuilder.h"
 #include "td/utils/Time.h"
@@ -114,30 +115,25 @@ void ClientManager::send(PromisedQueryPtr query) {
 
     auto id = clients_.create(ClientInfo{BotStatActor(stat_.actor_id(&stat_)), token, td::ActorOwn<Client>()});
     auto *client_info = clients_.get(id);
-    auto stat_actor = client_info->stat_.actor_id(&client_info->stat_);
-    auto client_id = td::create_actor<Client>(
-        PSLICE() << "Client/" << token, actor_shared(this, id), query->token().str(), query->is_test_dc(),
-        get_tqueue_id(r_user_id.ok(), query->is_test_dc()), parameters_, std::move(stat_actor));
+    client_info->client_ =
+        td::create_actor<Client>(PSLICE() << "Client/" << token, actor_shared(this, id), query->token().str(),
+                                 query->is_test_dc(), get_tqueue_id(r_user_id.ok(), query->is_test_dc()), parameters_,
+                                 client_info->stat_.actor_id(&client_info->stat_));
 
     auto method = query->method();
     if (method != "deletewebhook" && method != "setwebhook") {
       auto bot_token_with_dc = PSTRING() << query->token() << (query->is_test_dc() ? ":T" : "");
       auto webhook_info = parameters_->shared_data_->webhook_db_->get(bot_token_with_dc);
       if (!webhook_info.empty()) {
-        send_closure(client_id, &Client::send,
+        send_closure(client_info->client_, &Client::send,
                      get_webhook_restore_query(bot_token_with_dc, webhook_info, parameters_->shared_data_));
       }
     }
 
-    clients_.get(id)->client_ = std::move(client_id);
     std::tie(id_it, std::ignore) = token_to_id_.emplace(token, id);
   }
-  auto *client_info = clients_.get(id_it->second);
-
-  if (!query->is_internal()) {
-    query->set_stat_actor(client_info->stat_.actor_id(&client_info->stat_));
-  }
-  send_closure(client_info->client_, &Client::send, std::move(query));  // will send 429 if the client is already closed
+  send_closure(clients_.get(id_it->second)->client_, &Client::send,
+               std::move(query));  // will send 429 if the client is already closed
 }
 
 void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
@@ -285,13 +281,14 @@ void ClientManager::start_up() {
 
   // init tqueue
   {
+    auto load_start_time = td::Time::now();
     auto tqueue_binlog = td::make_unique<td::TQueueBinlog<td::Binlog>>();
     auto binlog = td::make_unique<td::Binlog>();
     auto tqueue = td::TQueue::create();
     td::vector<td::uint64> failed_to_replay_log_event_ids;
     td::int64 loaded_event_count = 0;
     binlog
-        ->init("tqueue.binlog",
+        ->init(parameters_->working_directory_ + "tqueue.binlog",
                [&](const td::BinlogEvent &event) {
                  if (tqueue_binlog->replay(event, *tqueue).is_error()) {
                    failed_to_replay_log_event_ids.push_back(event.id_);
@@ -301,7 +298,6 @@ void ClientManager::start_up() {
                })
         .ensure();
     tqueue_binlog.reset();
-    LOG(WARNING) << "Loaded " << loaded_event_count << " TQueue events";
 
     if (!failed_to_replay_log_event_ids.empty()) {
       LOG(ERROR) << "Failed to replay " << failed_to_replay_log_event_ids.size() << " TQueue events";
@@ -316,11 +312,15 @@ void ClientManager::start_up() {
     tqueue->set_callback(std::move(concurrent_tqueue_binlog));
 
     parameters_->shared_data_->tqueue_ = std::move(tqueue);
+
+    LOG(WARNING) << "Loaded " << loaded_event_count << " TQueue events in " << (td::Time::now() - load_start_time)
+                 << " seconds";
   }
 
   // init webhook_db
   auto concurrent_webhook_db = td::make_unique<td::BinlogKeyValue<td::ConcurrentBinlog>>();
-  auto status = concurrent_webhook_db->init("webhooks_db.binlog", td::DbKey::empty(), scheduler_id);
+  auto status = concurrent_webhook_db->init(parameters_->working_directory_ + "webhooks_db.binlog", td::DbKey::empty(),
+                                            scheduler_id);
   LOG_IF(FATAL, status.is_error()) << "Can't open webhooks_db.binlog " << status.error();
   parameters_->shared_data_->webhook_db_ = std::move(concurrent_webhook_db);
 
@@ -387,8 +387,7 @@ PromisedQueryPtr ClientManager::get_webhook_restore_query(td::Slice token, td::S
   const auto method = add_string("setwebhook");
   auto query = std::make_unique<Query>(std::move(containers), token, is_test_dc, method, std::move(args),
                                        td::vector<std::pair<td::MutableSlice, td::MutableSlice>>(),
-                                       td::vector<td::HttpFile>(), std::move(shared_data), td::IPAddress());
-  query->set_internal(true);
+                                       td::vector<td::HttpFile>(), std::move(shared_data), td::IPAddress(), true);
   return PromisedQueryPtr(query.release(), PromiseDeleter(td::PromiseActor<td::unique_ptr<Query>>()));
 }
 

@@ -54,10 +54,15 @@ struct SharedData {
 };
 
 struct ClientParameters {
+  td::string working_directory_;
+  bool allow_colon_in_filenames_ = true;
+
   bool local_mode_ = false;
 
   td::int32 api_id_ = 0;
   td::string api_hash_;
+
+  td::string version_;
 
   td::int32 default_max_webhook_connections_ = 0;
   td::IPAddress webhook_proxy_ip_address_;
