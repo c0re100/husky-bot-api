@@ -63,6 +63,8 @@ class Client : public WebhookActor::Callback {
   static constexpr int32 MAX_CERTIFICATE_FILE_SIZE = 3 << 20;
   static constexpr int32 MAX_DOWNLOAD_FILE_SIZE = 2000 << 20;
 
+  static constexpr int32 MAX_CONCURRENTLY_SENT_CHAT_MESSAGES = 1000;  // some unreasonably big value
+
   static constexpr int32 MESSAGES_CACHE_TIME = 3600;
 
   static constexpr std::size_t MIN_PENDING_UPDATES_WARNING = 200;
@@ -138,6 +140,7 @@ class Client : public WebhookActor::Callback {
   class JsonChatMember;
   class JsonChatMembers;
   class JsonChatMemberUpdated;
+  class JsonChatJoinRequest;
   class JsonGameHighScore;
   class JsonAddress;
   class JsonOrderInfo;
@@ -146,10 +149,10 @@ class Client : public WebhookActor::Callback {
   class JsonEncryptedCredentials;
   class JsonPassportData;
   class JsonProximityAlertTriggered;
-  class JsonVoiceChatScheduled;
-  class JsonVoiceChatStarted;
-  class JsonVoiceChatEnded;
-  class JsonInviteVoiceChatParticipants;
+  class JsonVideoChatScheduled;
+  class JsonVideoChatStarted;
+  class JsonVideoChatEnded;
+  class JsonInviteVideoChatParticipants;
   class JsonChatSetTtl;
   class JsonUpdateTypes;
   class JsonWebhookInfo;
@@ -495,6 +498,8 @@ class Client : public WebhookActor::Callback {
   Status process_ban_chat_member_query(PromisedQueryPtr &query);
   Status process_restrict_chat_member_query(PromisedQueryPtr &query);
   Status process_unban_chat_member_query(PromisedQueryPtr &query);
+  Status process_approve_chat_join_request_query(PromisedQueryPtr &query);
+  Status process_decline_chat_join_request_query(PromisedQueryPtr &query);
   Status process_get_sticker_set_query(PromisedQueryPtr &query);
   Status process_upload_sticker_file_query(PromisedQueryPtr &query);
   Status process_create_new_sticker_set_query(PromisedQueryPtr &query);
@@ -785,6 +790,8 @@ class Client : public WebhookActor::Callback {
 
   void add_update_chat_member(object_ptr<td_api::updateChatMember> &&update);
 
+  void add_update_chat_join_request(object_ptr<td_api::updateNewChatJoinRequest> &&update);
+
   // append only before Size
   enum class UpdateType : int32 {
     Message,
@@ -803,6 +810,7 @@ class Client : public WebhookActor::Callback {
     PollAnswer,
     MyChatMember,
     ChatMember,
+    ChatJoinRequest,
     Size
   };
 
@@ -881,6 +889,8 @@ class Client : public WebhookActor::Callback {
     int64 send_message_query_id = 0;
   };
   std::unordered_map<FullMessageId, YetUnsentMessage, FullMessageIdHash> yet_unsent_messages_;
+
+  std::unordered_map<int64, int32> yet_unsent_message_count_;
 
   struct PendingSendMessageQuery {
     PromisedQueryPtr query;

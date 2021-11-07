@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2021
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -112,13 +112,17 @@ void ClientManager::send(PromisedQueryPtr query) {
       }
       flood_control.add_event(static_cast<td::int32>(now));
     }
+    auto tqueue_id = get_tqueue_id(r_user_id.ok(), query->is_test_dc());
+    if (active_client_count_.find(tqueue_id) != active_client_count_.end()) {
+      // return query->set_retry_after_error(1);
+    }
 
-    auto id = clients_.create(ClientInfo{BotStatActor(stat_.actor_id(&stat_)), token, td::ActorOwn<Client>()});
+    auto id =
+        clients_.create(ClientInfo{BotStatActor(stat_.actor_id(&stat_)), token, tqueue_id, td::ActorOwn<Client>()});
     auto *client_info = clients_.get(id);
-    client_info->client_ =
-        td::create_actor<Client>(PSLICE() << "Client/" << token, actor_shared(this, id), query->token().str(),
-                                 query->is_test_dc(), get_tqueue_id(r_user_id.ok(), query->is_test_dc()), parameters_,
-                                 client_info->stat_.actor_id(&client_info->stat_));
+    client_info->client_ = td::create_actor<Client>(PSLICE() << "Client/" << token, actor_shared(this, id),
+                                                    query->token().str(), query->is_test_dc(), tqueue_id, parameters_,
+                                                    client_info->stat_.actor_id(&client_info->stat_));
 
     auto method = query->method();
     if (method != "deletewebhook" && method != "setwebhook") {
@@ -403,6 +407,21 @@ PromisedQueryPtr ClientManager::get_webhook_restore_query(td::Slice token, td::S
   return PromisedQueryPtr(query.release(), PromiseDeleter(td::PromiseActor<td::unique_ptr<Query>>()));
 }
 
+void ClientManager::raw_event(const td::Event::Raw &event) {
+  auto id = get_link_token();
+  auto *info = clients_.get(id);
+  CHECK(info != nullptr);
+  auto &value = active_client_count_[info->tqueue_id_];
+  if (event.ptr != nullptr) {
+    value++;
+  } else {
+    CHECK(value > 0);
+    if (--value == 0) {
+      active_client_count_.erase(info->tqueue_id_);
+    }
+  }
+}
+
 void ClientManager::hangup_shared() {
   auto id = get_link_token();
   auto *info = clients_.get(id);
@@ -412,18 +431,22 @@ void ClientManager::hangup_shared() {
   clients_.erase(id);
 
   if (close_flag_ && clients_.empty()) {
+    CHECK(active_client_count_.empty());
     close_db();
   }
 }
 
 void ClientManager::close_db() {
   LOG(WARNING) << "Closing databases";
-  td::MultiPromiseActorSafe mpromise("close binlogs");
-  mpromise.add_promise(td::PromiseCreator::lambda(
+  td::MultiPromiseActorSafe mpas("close binlogs");
+  mpas.add_promise(td::PromiseCreator::lambda(
       [actor_id = actor_id(this)](td::Unit) { send_closure(actor_id, &ClientManager::finish_close); }));
+  mpas.set_ignore_errors(true);
 
-  parameters_->shared_data_->tqueue_->close(mpromise.get_promise());
-  parameters_->shared_data_->webhook_db_->close(mpromise.get_promise());
+  auto lock = mpas.get_promise();
+  parameters_->shared_data_->tqueue_->close(mpas.get_promise());
+  parameters_->shared_data_->webhook_db_->close(mpas.get_promise());
+  lock.set_value(td::Unit());
 }
 
 void ClientManager::finish_close() {
