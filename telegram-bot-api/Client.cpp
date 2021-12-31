@@ -184,9 +184,6 @@ Client::Client(td::ActorShared<> parent, const td::string &bot_token, bool is_te
     , tqueue_id_(tqueue_id)
     , parameters_(std::move(parameters))
     , stat_actor_(std::move(stat_actor)) {
-  messages_lru_root_.lru_next = &messages_lru_root_;
-  messages_lru_root_.lru_prev = &messages_lru_root_;
-
   static auto is_inited = init_methods();
   CHECK(is_inited);
 }
@@ -426,6 +423,9 @@ class Client::JsonEntity : public Jsonable {
       case td_api::textEntityTypeStrikethrough::ID:
         object("type", "strikethrough");
         break;
+      case td_api::textEntityTypeSpoiler::ID:
+        object("type", "spoiler");
+        break;
       case td_api::textEntityTypeCode::ID:
         object("type", "code");
         break;
@@ -572,8 +572,8 @@ class Client::JsonChatInviteLink : public Jsonable {
       object("name", chat_invite_link_->name_);
     }
     object("creator", JsonUser(chat_invite_link_->creator_user_id_, client_));
-    if (chat_invite_link_->expire_date_ != 0) {
-      object("expire_date", chat_invite_link_->expire_date_);
+    if (chat_invite_link_->expiration_date_ != 0) {
+      object("expire_date", chat_invite_link_->expiration_date_);
     }
     if (chat_invite_link_->member_limit_ != 0) {
       object("member_limit", chat_invite_link_->member_limit_);
@@ -2942,10 +2942,11 @@ class Client::TdOnResolveBotUsernameCallback : public TdQueryCallback {
 template <class OnSuccess>
 class Client::TdOnCheckMessageCallback : public TdQueryCallback {
  public:
-  TdOnCheckMessageCallback(Client *client, int64 chat_id, bool allow_empty, Slice message_type, PromisedQueryPtr query,
-                           OnSuccess on_success)
+  TdOnCheckMessageCallback(Client *client, int64 chat_id, int64 message_id, bool allow_empty, Slice message_type,
+                           PromisedQueryPtr query, OnSuccess on_success)
       : client_(client)
       , chat_id_(chat_id)
+      , message_id_(message_id)
       , allow_empty_(allow_empty)
       , message_type_(message_type)
       , query_(std::move(query))
@@ -2956,7 +2957,7 @@ class Client::TdOnCheckMessageCallback : public TdQueryCallback {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->code_ == 429) {
-        LOG(WARNING) << "Failed to get " << message_type_;
+        LOG(WARNING) << "Failed to get message " << message_id_ << " in " << chat_id_ << ": " << message_type_;
       }
       if (allow_empty_) {
         return on_success_(chat_id_, 0, std::move(query_));
@@ -2967,12 +2968,14 @@ class Client::TdOnCheckMessageCallback : public TdQueryCallback {
     CHECK(result->get_id() == td_api::message::ID);
     auto full_message_id = client_->add_message(move_object_as<td_api::message>(result));
     CHECK(full_message_id.chat_id == chat_id_);
+    CHECK(full_message_id.message_id == message_id_);
     on_success_(full_message_id.chat_id, full_message_id.message_id, std::move(query_));
   }
 
  private:
   Client *client_;
   int64 chat_id_;
+  int64 message_id_;
   bool allow_empty_;
   Slice message_type_;
   PromisedQueryPtr query_;
@@ -3547,7 +3550,6 @@ ServerBotInfo Client::get_bot_info() const {
 void Client::start_up() {
   start_time_ = td::Time::now();
   next_bot_updates_warning_time_ = start_time_ + 600;
-  schedule_next_delete_messages_lru();
   webhook_set_time_ = start_time_;
   next_allowed_set_webhook_time_ = start_time_;
   next_set_webhook_logging_time_ = start_time_;
@@ -3969,9 +3971,10 @@ void Client::check_message(Slice chat_id_str, int64 message_id, bool allow_empty
                  return on_success(chat_id, 0, std::move(query));
                }
 
-               send_request(make_object<td_api::getMessage>(chat_id, message_id),
-                            std::make_unique<TdOnCheckMessageCallback<OnSuccess>>(
-                                this, chat_id, allow_empty, message_type, std::move(query), std::move(on_success)));
+               send_request(
+                   make_object<td_api::getMessage>(chat_id, message_id),
+                   std::make_unique<TdOnCheckMessageCallback<OnSuccess>>(
+                       this, chat_id, message_id, allow_empty, message_type, std::move(query), std::move(on_success)));
              });
 }
 
@@ -4270,7 +4273,7 @@ bool Client::allow_update_before_authorization(const td_api::Object *update) con
     return name == "my_id" || name == "unix_time";
   }
   if (update_id == td_api::updateUser::ID) {
-    return static_cast<const td_api::updateUser *>(update)->user_->id_ == my_id_;
+    return true;
   }
   return false;
 }
@@ -4390,7 +4393,7 @@ void Client::on_update(object_ptr<td_api::Object> result) {
       chat_info->title = std::move(chat->title_);
       chat_info->photo = std::move(chat->photo_);
       chat_info->permissions = std::move(chat->permissions_);
-      chat_info->message_auto_delete_time = chat->message_ttl_setting_;
+      chat_info->message_auto_delete_time = chat->message_ttl_;
       chat_info->has_protected_content = chat->has_protected_content_;
       break;
     }
@@ -4415,11 +4418,11 @@ void Client::on_update(object_ptr<td_api::Object> result) {
       chat_info->permissions = std::move(update->permissions_);
       break;
     }
-    case td_api::updateChatMessageTtlSetting::ID: {
-      auto update = move_object_as<td_api::updateChatMessageTtlSetting>(result);
+    case td_api::updateChatMessageTtl::ID: {
+      auto update = move_object_as<td_api::updateChatMessageTtl>(result);
       auto chat_info = add_chat(update->chat_id_);
       CHECK(chat_info->type != ChatInfo::Type::Unknown);
-      chat_info->message_auto_delete_time = update->message_ttl_setting_;
+      chat_info->message_auto_delete_time = update->message_ttl_;
       break;
     }
     case td_api::updateChatHasProtectedContent::ID: {
@@ -4490,6 +4493,9 @@ void Client::on_update(object_ptr<td_api::Object> result) {
       }
       if (name == "group_anonymous_bot_user_id" && update->value_->get_id() == td_api::optionValueInteger::ID) {
         group_anonymous_bot_user_id_ = move_object_as<td_api::optionValueInteger>(update->value_)->value_;
+      }
+      if (name == "channel_bot_user_id" && update->value_->get_id() == td_api::optionValueInteger::ID) {
+        channel_bot_user_id_ = move_object_as<td_api::optionValueInteger>(update->value_)->value_;
       }
       if (name == "telegram_service_notifications_chat_id" &&
           update->value_->get_id() == td_api::optionValueInteger::ID) {
@@ -5293,8 +5299,9 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
   return nullptr;
 }
 
-td_api::object_ptr<td_api::messageSendOptions> Client::get_message_send_options(bool disable_notification) {
-  return make_object<td_api::messageSendOptions>(disable_notification, false, nullptr);
+td_api::object_ptr<td_api::messageSendOptions> Client::get_message_send_options(bool disable_notification,
+                                                                                bool protect_content) {
+  return make_object<td_api::messageSendOptions>(disable_notification, false, protect_content, nullptr);
 }
 
 td::Result<td::vector<td_api::object_ptr<td_api::InputInlineQueryResult>>> Client::get_inline_query_results(
@@ -5976,6 +5983,9 @@ td::Result<td_api::object_ptr<td_api::TextEntityType>> Client::get_text_entity_t
   }
   if (type == "strikethrough") {
     return make_object<td_api::textEntityTypeStrikethrough>();
+  }
+  if (type == "spoiler") {
+    return make_object<td_api::textEntityTypeSpoiler>();
   }
   if (type == "code") {
     return make_object<td_api::textEntityTypeCode>();
@@ -6911,6 +6921,7 @@ td::Status Client::process_send_media_group_query(PromisedQueryPtr &query) {
   auto reply_to_message_id = get_message_id(query.get(), "reply_to_message_id");
   auto allow_sending_without_reply = to_bool(query->arg("allow_sending_without_reply"));
   auto disable_notification = to_bool(query->arg("disable_notification"));
+  auto protect_content = to_bool(query->arg("protect_content"));
   // TRY_RESULT(reply_markup, get_reply_markup(query.get()));
   auto reply_markup = nullptr;
   TRY_RESULT(input_message_contents, get_input_message_contents(query.get(), "media"));
@@ -6918,9 +6929,10 @@ td::Status Client::process_send_media_group_query(PromisedQueryPtr &query) {
   resolve_reply_markup_bot_usernames(
       std::move(reply_markup), std::move(query),
       [this, chat_id = chat_id.str(), reply_to_message_id, allow_sending_without_reply, disable_notification,
-       input_message_contents = std::move(input_message_contents)](object_ptr<td_api::ReplyMarkup> reply_markup,
-                                                                   PromisedQueryPtr query) mutable {
-        auto on_success = [this, disable_notification, input_message_contents = std::move(input_message_contents),
+       protect_content, input_message_contents = std::move(input_message_contents)](
+          object_ptr<td_api::ReplyMarkup> reply_markup, PromisedQueryPtr query) mutable {
+        auto on_success = [this, disable_notification, protect_content,
+                           input_message_contents = std::move(input_message_contents),
                            reply_markup = std::move(reply_markup)](int64 chat_id, int64 reply_to_message_id,
                                                                    PromisedQueryPtr query) mutable {
           auto it = yet_unsent_message_count_.find(chat_id);
@@ -6928,10 +6940,11 @@ td::Status Client::process_send_media_group_query(PromisedQueryPtr &query) {
             return query->set_retry_after_error(60);
           }
 
-          send_request(make_object<td_api::sendMessageAlbum>(chat_id, 0, reply_to_message_id,
-                                                             get_message_send_options(disable_notification),
-                                                             std::move(input_message_contents)),
-                       std::make_unique<TdOnSendMessageAlbumCallback>(this, std::move(query)));
+          send_request(
+              make_object<td_api::sendMessageAlbum>(chat_id, 0, reply_to_message_id,
+                                                    get_message_send_options(disable_notification, protect_content),
+                                                    std::move(input_message_contents)),
+              std::make_unique<TdOnSendMessageAlbumCallback>(this, std::move(query)));
         };
         check_message(chat_id, reply_to_message_id, reply_to_message_id <= 0 || allow_sending_without_reply,
                       AccessRights::Write, "replied message", std::move(query), std::move(on_success));
@@ -8344,6 +8357,7 @@ void Client::do_send_message(object_ptr<td_api::InputMessageContent> input_messa
   auto reply_to_message_id = get_message_id(query.get(), "reply_to_message_id");
   auto allow_sending_without_reply = to_bool(query->arg("allow_sending_without_reply"));
   auto disable_notification = to_bool(query->arg("disable_notification"));
+  auto protect_content = to_bool(query->arg("protect_content"));
   auto r_reply_markup = get_reply_markup(query.get());
   if (r_reply_markup.is_error()) {
     return fail_query_with_error(std::move(query), 400, r_reply_markup.error().message());
@@ -8353,9 +8367,10 @@ void Client::do_send_message(object_ptr<td_api::InputMessageContent> input_messa
   resolve_reply_markup_bot_usernames(
       std::move(reply_markup), std::move(query),
       [this, chat_id = chat_id.str(), reply_to_message_id, allow_sending_without_reply, disable_notification,
-       input_message_content = std::move(input_message_content)](object_ptr<td_api::ReplyMarkup> reply_markup,
-                                                                 PromisedQueryPtr query) mutable {
-        auto on_success = [this, disable_notification, input_message_content = std::move(input_message_content),
+       protect_content, input_message_content = std::move(input_message_content)](
+          object_ptr<td_api::ReplyMarkup> reply_markup, PromisedQueryPtr query) mutable {
+        auto on_success = [this, disable_notification, protect_content,
+                           input_message_content = std::move(input_message_content),
                            reply_markup = std::move(reply_markup)](int64 chat_id, int64 reply_to_message_id,
                                                                    PromisedQueryPtr query) mutable {
           auto it = yet_unsent_message_count_.find(chat_id);
@@ -8364,7 +8379,7 @@ void Client::do_send_message(object_ptr<td_api::InputMessageContent> input_messa
           }
 
           send_request(make_object<td_api::sendMessage>(chat_id, 0, reply_to_message_id,
-                                                        get_message_send_options(disable_notification),
+                                                        get_message_send_options(disable_notification, protect_content),
                                                         std::move(reply_markup), std::move(input_message_content)),
                        std::make_unique<TdOnSendMessageCallback>(this, std::move(query)));
         };
@@ -9633,56 +9648,10 @@ void Client::delete_message(int64 chat_id, int64 message_id, bool only_from_cach
   }
 
   auto message_info = it->second.get();
-  CHECK(message_info->lru_next != nullptr);
-  message_info->lru_next->lru_prev = message_info->lru_prev;
-  message_info->lru_prev->lru_next = message_info->lru_next;
 
   set_message_reply_to_message_id(message_info, 0);
 
   messages_.erase(it);
-}
-
-void Client::schedule_next_delete_messages_lru() {
-  CHECK(!next_delete_messages_lru_timeout_.has_timeout());
-  next_delete_messages_lru_timeout_.set_callback(Client::delete_messages_lru);
-  next_delete_messages_lru_timeout_.set_callback_data(static_cast<void *>(this));
-  next_delete_messages_lru_timeout_.set_timeout_in(td::Random::fast(MESSAGES_CACHE_TIME, 2 * MESSAGES_CACHE_TIME));
-}
-
-void Client::delete_messages_lru(void *client_void) {
-  CHECK(client_void != nullptr);
-  auto client = static_cast<Client *>(client_void);
-
-  auto now = td::Time::now();
-  int32 deleted_message_count = 0;
-  while (client->messages_lru_root_.lru_next->access_time < now - MESSAGES_CACHE_TIME) {
-    auto message = client->messages_lru_root_.lru_next;
-    if (client->yet_unsent_reply_message_ids_.count({message->chat_id, message->id})) {
-      LOG(DEBUG) << "Force usage of message " << message->id << " in " << message->chat_id;
-      client->update_message_lru(message);
-    } else {
-      client->delete_message(message->chat_id, message->id, true);
-      deleted_message_count++;
-    }
-  }
-
-  if (deleted_message_count != 0) {
-    LOG(DEBUG) << "Delete " << deleted_message_count << " messages from cache";
-  }
-  client->schedule_next_delete_messages_lru();
-}
-
-void Client::update_message_lru(const MessageInfo *message_info) const {
-  message_info->access_time = td::Time::now();
-  if (message_info->lru_next != nullptr) {
-    message_info->lru_next->lru_prev = message_info->lru_prev;
-    message_info->lru_prev->lru_next = message_info->lru_next;
-  }
-  auto prev = messages_lru_root_.lru_prev;
-  message_info->lru_prev = prev;
-  prev->lru_next = message_info;
-  message_info->lru_next = &messages_lru_root_;
-  messages_lru_root_.lru_prev = message_info;
 }
 
 Client::FullMessageId Client::add_message(object_ptr<td_api::message> &&message, bool force_update_content) {
@@ -9701,41 +9670,12 @@ Client::FullMessageId Client::add_message(object_ptr<td_api::message> &&message,
     message_info = std::move(it->second);
   }
 
-  update_message_lru(message_info.get());
-
   message_info->id = message_id;
   message_info->chat_id = chat_id;
   message_info->date = message->date_;
   message_info->edit_date = message->edit_date_;
   message_info->media_album_id = message->media_album_id_;
   message_info->via_bot_user_id = message->via_bot_user_id_;
-
-  CHECK(message->sender_id_ != nullptr);
-  switch (message->sender_id_->get_id()) {
-    case td_api::messageSenderUser::ID: {
-      auto sender_id = move_object_as<td_api::messageSenderUser>(message->sender_id_);
-      message_info->sender_user_id = sender_id->user_id_;
-      CHECK(message_info->sender_user_id > 0);
-      break;
-    }
-    case td_api::messageSenderChat::ID: {
-      auto sender_id = move_object_as<td_api::messageSenderChat>(message->sender_id_);
-      message_info->sender_chat_id = sender_id->chat_id_;
-
-      auto chat_type = get_chat_type(chat_id);
-      if (chat_type != ChatType::Channel) {
-        if (message_info->sender_chat_id == chat_id) {
-          message_info->sender_user_id = group_anonymous_bot_user_id_;
-        } else {
-          message_info->sender_user_id = service_notifications_user_id_;
-        }
-        CHECK(message_info->sender_user_id > 0);
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
 
   message_info->initial_chat_id = 0;
   message_info->initial_sender_user_id = 0;
@@ -9779,9 +9719,39 @@ Client::FullMessageId Client::add_message(object_ptr<td_api::message> &&message,
       default:
         UNREACHABLE();
     }
-    message_info->is_automatic_forward = message_info->initial_chat_id != 0 && message_info->initial_message_id != 0 &&
-                                         message_info->initial_chat_id == message->forward_info_->from_chat_id_ &&
-                                         message_info->initial_message_id == message->forward_info_->from_message_id_;
+    auto from_chat_id = message->forward_info_->from_chat_id_;
+    message_info->is_automatic_forward =
+        from_chat_id != 0 && from_chat_id != chat_id && message->forward_info_->from_message_id_ != 0 &&
+        get_chat_type(chat_id) == ChatType::Supergroup && get_chat_type(from_chat_id) == ChatType::Channel;
+  }
+
+  CHECK(message->sender_id_ != nullptr);
+  switch (message->sender_id_->get_id()) {
+    case td_api::messageSenderUser::ID: {
+      auto sender_id = move_object_as<td_api::messageSenderUser>(message->sender_id_);
+      message_info->sender_user_id = sender_id->user_id_;
+      CHECK(message_info->sender_user_id > 0);
+      break;
+    }
+    case td_api::messageSenderChat::ID: {
+      auto sender_id = move_object_as<td_api::messageSenderChat>(message->sender_id_);
+      message_info->sender_chat_id = sender_id->chat_id_;
+
+      auto chat_type = get_chat_type(chat_id);
+      if (chat_type != ChatType::Channel) {
+        if (message_info->sender_chat_id == chat_id) {
+          message_info->sender_user_id = group_anonymous_bot_user_id_;
+        } else if (message_info->is_automatic_forward) {
+          message_info->sender_user_id = service_notifications_user_id_;
+        } else {
+          message_info->sender_user_id = channel_bot_user_id_;
+        }
+        CHECK(message_info->sender_user_id > 0);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
 
   message_info->can_be_saved = message->can_be_saved_;
@@ -9841,9 +9811,7 @@ const Client::MessageInfo *Client::get_message(int64 chat_id, int64 message_id) 
   }
   LOG(DEBUG) << "Found message " << message_id << " from chat " << chat_id;
 
-  auto result = it->second.get();
-  update_message_lru(result);
-  return result;
+  return it->second.get();
 }
 
 Client::MessageInfo *Client::get_message_editable(int64 chat_id, int64 message_id) {
@@ -9854,9 +9822,7 @@ Client::MessageInfo *Client::get_message_editable(int64 chat_id, int64 message_i
   }
   LOG(DEBUG) << "Found message " << message_id << " from chat " << chat_id;
 
-  auto result = it->second.get();
-  update_message_lru(result);
-  return result;
+  return it->second.get();
 }
 
 td::string Client::get_chat_member_status(const object_ptr<td_api::ChatMemberStatus> &status) {

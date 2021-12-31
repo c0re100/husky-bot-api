@@ -1,4 +1,4 @@
-# Husky Bot API
+﻿# Husky Bot API
 
 ---
 
@@ -43,7 +43,7 @@ If you do that, you'll only need to choose the target operating system to receiv
 
 In general, you need to install all `Telegram Bot API server` [dependencies](#dependencies) and compile the source code using CMake:
 
-```
+```sh
 git clone --recursive https://github.com/c0re100/husky-bot-api-server.git
 cd husky-bot-api-server
 mkdir build
