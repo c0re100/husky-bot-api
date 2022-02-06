@@ -11,6 +11,7 @@
 #include "telegram-bot-api/WebhookActor.h"
 
 #include "td/telegram/ClientActor.h"
+#include "td/telegram/td_api.h"
 
 #include "td/actor/actor.h"
 #include "td/actor/PromiseFuture.h"
@@ -35,12 +36,12 @@ struct ClientParameters;
 
 namespace td_api = td::td_api;
 
-class Client : public WebhookActor::Callback {
+class Client final : public WebhookActor::Callback {
  public:
   Client(td::ActorShared<> parent, const td::string &bot_token, bool is_test_dc, td::int64 tqueue_id,
          std::shared_ptr<const ClientParameters> parameters, td::ActorId<BotStatActor> stat_actor);
 
-  void send(PromisedQueryPtr query) override;
+  void send(PromisedQueryPtr query) final;
 
   void close();
 
@@ -367,7 +368,7 @@ class Client : public WebhookActor::Callback {
 
   static object_ptr<td_api::MaskPoint> mask_index_to_point(int32 index);
 
-  td::Result<td::vector<object_ptr<td_api::InputSticker>>> get_input_stickers(const Query *query) const;
+  td::Result<td::vector<object_ptr<td_api::inputSticker>>> get_input_stickers(const Query *query, bool is_masks) const;
 
   static td::Result<td::string> get_passport_element_hash(Slice encoded_hash);
 
@@ -522,11 +523,11 @@ class Client : public WebhookActor::Callback {
   Status process_get_message_query(PromisedQueryPtr &query);
   Status process_get_chat_members_query(PromisedQueryPtr &query);
 
-  void webhook_verified(td::string cached_ip_address) override;
-  void webhook_success() override;
-  void webhook_error(Status status) override;
-  void webhook_closed(Status status) override;
-  void hangup_shared() override;
+  void webhook_verified(td::string cached_ip_address) final;
+  void webhook_success() final;
+  void webhook_error(Status status) final;
+  void webhook_closed(Status status) final;
+  void hangup_shared() final;
   int32 get_webhook_max_connections(const Query *query) const;
   static bool get_webhook_fix_ip_address(const Query *query);
   void do_set_webhook(PromisedQueryPtr query, bool was_deleted);
@@ -565,13 +566,13 @@ class Client : public WebhookActor::Callback {
 
   void long_poll_wakeup(bool force_flag);
 
-  void start_up() override;
+  void start_up() final;
 
-  void raw_event(const td::Event::Raw &event) override;
+  void raw_event(const td::Event::Raw &event) final;
 
-  void loop() override;
+  void loop() final;
 
-  void timeout_expired() override;
+  void timeout_expired() final;
 
   struct UserInfo {
     enum class Type { Regular, Deleted, Bot, Unknown };

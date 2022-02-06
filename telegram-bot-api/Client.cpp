@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2021
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -8,10 +8,10 @@
 
 #include "telegram-bot-api/ClientParameters.h"
 
+#include "td/db/TQueue.h"
+
 #include "td/actor/PromiseFuture.h"
 #include "td/actor/SleepActor.h"
-
-#include "td/db/TQueue.h"
 
 #include "td/utils/algorithm.h"
 #include "td/utils/base64.h"
@@ -23,7 +23,6 @@
 #include "td/utils/PathView.h"
 #include "td/utils/port/path.h"
 #include "td/utils/port/Stat.h"
-#include "td/utils/Random.h"
 #include "td/utils/Slice.h"
 #include "td/utils/SliceBuilder.h"
 #include "td/utils/Span.h"
@@ -278,7 +277,7 @@ bool Client::init_methods() {
   return true;
 }
 
-class Client::JsonFile : public Jsonable {
+class Client::JsonFile final : public Jsonable {
  public:
   JsonFile(const td_api::file *file, const Client *client) : file_(file), client_(client) {
   }
@@ -292,7 +291,7 @@ class Client::JsonFile : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonDatedFile : public Jsonable {
+class Client::JsonDatedFile final : public Jsonable {
  public:
   JsonDatedFile(const td_api::datedFile *file, const Client *client) : file_(file), client_(client) {
   }
@@ -307,7 +306,7 @@ class Client::JsonDatedFile : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonDatedFiles : public Jsonable {
+class Client::JsonDatedFiles final : public Jsonable {
  public:
   JsonDatedFiles(const td::vector<object_ptr<td_api::datedFile>> &files, const Client *client)
       : files_(files), client_(client) {
@@ -324,7 +323,7 @@ class Client::JsonDatedFiles : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonUser : public Jsonable {
+class Client::JsonUser final : public Jsonable {
  public:
   JsonUser(int64 user_id, const Client *client, bool full_bot_info = false)
       : user_id_(user_id), client_(client), full_bot_info_(full_bot_info) {
@@ -362,7 +361,7 @@ class Client::JsonUser : public Jsonable {
   bool full_bot_info_;
 };
 
-class Client::JsonUsers : public Jsonable {
+class Client::JsonUsers final : public Jsonable {
  public:
   JsonUsers(const td::vector<int64> &user_ids, const Client *client) : user_ids_(user_ids), client_(client) {
   }
@@ -378,7 +377,7 @@ class Client::JsonUsers : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonEntity : public Jsonable {
+class Client::JsonEntity final : public Jsonable {
  public:
   JsonEntity(const td_api::textEntity *entity, const Client *client) : entity_(entity), client_(client) {
   }
@@ -460,7 +459,7 @@ class Client::JsonEntity : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVectorEntities : public Jsonable {
+class Client::JsonVectorEntities final : public Jsonable {
  public:
   JsonVectorEntities(const td::vector<object_ptr<td_api::textEntity>> &entities, const Client *client)
       : entities_(entities), client_(client) {
@@ -481,7 +480,7 @@ class Client::JsonVectorEntities : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonLocation : public Jsonable {
+class Client::JsonLocation final : public Jsonable {
  public:
   explicit JsonLocation(const td_api::location *location, double expires_in = 0.0, int32 live_period = 0,
                         int32 heading = 0, int32 proximity_alert_radius = 0)
@@ -517,7 +516,7 @@ class Client::JsonLocation : public Jsonable {
   int32 proximity_alert_radius_;
 };
 
-class Client::JsonChatPermissions : public Jsonable {
+class Client::JsonChatPermissions final : public Jsonable {
  public:
   explicit JsonChatPermissions(const td_api::chatPermissions *chat_permissions) : chat_permissions_(chat_permissions) {
   }
@@ -530,7 +529,7 @@ class Client::JsonChatPermissions : public Jsonable {
   const td_api::chatPermissions *chat_permissions_;
 };
 
-class Client::JsonChatPhotoInfo : public Jsonable {
+class Client::JsonChatPhotoInfo final : public Jsonable {
  public:
   explicit JsonChatPhotoInfo(const td_api::chatPhotoInfo *chat_photo) : chat_photo_(chat_photo) {
   }
@@ -546,7 +545,7 @@ class Client::JsonChatPhotoInfo : public Jsonable {
   const td_api::chatPhotoInfo *chat_photo_;
 };
 
-class Client::JsonChatLocation : public Jsonable {
+class Client::JsonChatLocation final : public Jsonable {
  public:
   explicit JsonChatLocation(const td_api::chatLocation *chat_location) : chat_location_(chat_location) {
   }
@@ -560,7 +559,7 @@ class Client::JsonChatLocation : public Jsonable {
   const td_api::chatLocation *chat_location_;
 };
 
-class Client::JsonChatInviteLink : public Jsonable {
+class Client::JsonChatInviteLink final : public Jsonable {
  public:
   JsonChatInviteLink(const td_api::chatInviteLink *chat_invite_link, const Client *client)
       : chat_invite_link_(chat_invite_link), client_(client) {
@@ -591,7 +590,7 @@ class Client::JsonChatInviteLink : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonMessage : public Jsonable {
+class Client::JsonMessage final : public Jsonable {
  public:
   JsonMessage(const MessageInfo *message, bool need_reply, const td::string &source, const Client *client)
       : message_(message), need_reply_(need_reply), source_(source), client_(client) {
@@ -616,7 +615,7 @@ class Client::JsonMessage : public Jsonable {
   }
 };
 
-class Client::JsonChat : public Jsonable {
+class Client::JsonChat final : public Jsonable {
  public:
   JsonChat(int64 chat_id, bool is_full, const Client *client, int64 pinned_message_id = -1)
       : chat_id_(chat_id), is_full_(is_full), client_(client), pinned_message_id_(pinned_message_id) {
@@ -761,7 +760,7 @@ class Client::JsonChat : public Jsonable {
   int64 pinned_message_id_;
 };
 
-class Client::JsonMessageSender : public Jsonable {
+class Client::JsonMessageSender final : public Jsonable {
  public:
   JsonMessageSender(const td_api::MessageSender *sender_id, const Client *client)
       : sender_id_(sender_id), client_(client) {
@@ -789,7 +788,7 @@ class Client::JsonMessageSender : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonMessages : public Jsonable {
+class Client::JsonMessages final : public Jsonable {
  public:
   explicit JsonMessages(const td::vector<td::string> &messages) : messages_(messages) {
   }
@@ -804,7 +803,7 @@ class Client::JsonMessages : public Jsonable {
   const td::vector<td::string> &messages_;
 };
 
-class Client::JsonAnimation : public Jsonable {
+class Client::JsonAnimation final : public Jsonable {
  public:
   JsonAnimation(const td_api::animation *animation, bool as_document, const Client *client)
       : animation_(animation), as_document_(as_document), client_(client) {
@@ -832,7 +831,7 @@ class Client::JsonAnimation : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonAudio : public Jsonable {
+class Client::JsonAudio final : public Jsonable {
  public:
   JsonAudio(const td_api::audio *audio, const Client *client) : audio_(audio), client_(client) {
   }
@@ -860,7 +859,7 @@ class Client::JsonAudio : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonDocument : public Jsonable {
+class Client::JsonDocument final : public Jsonable {
  public:
   JsonDocument(const td_api::document *document, const Client *client) : document_(document), client_(client) {
   }
@@ -881,7 +880,7 @@ class Client::JsonDocument : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonPhotoSize : public Jsonable {
+class Client::JsonPhotoSize final : public Jsonable {
  public:
   JsonPhotoSize(const td_api::photoSize *photo_size, const Client *client) : photo_size_(photo_size), client_(client) {
   }
@@ -897,7 +896,7 @@ class Client::JsonPhotoSize : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonThumbnail : public Jsonable {
+class Client::JsonThumbnail final : public Jsonable {
  public:
   JsonThumbnail(const td_api::thumbnail *thumbnail, const Client *client) : thumbnail_(thumbnail), client_(client) {
   }
@@ -913,7 +912,7 @@ class Client::JsonThumbnail : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonPhoto : public Jsonable {
+class Client::JsonPhoto final : public Jsonable {
  public:
   JsonPhoto(const td_api::photo *photo, const Client *client) : photo_(photo), client_(client) {
   }
@@ -931,7 +930,7 @@ class Client::JsonPhoto : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatPhoto : public Jsonable {
+class Client::JsonChatPhoto final : public Jsonable {
  public:
   JsonChatPhoto(const td_api::chatPhoto *photo, const Client *client) : photo_(photo), client_(client) {
   }
@@ -949,7 +948,7 @@ class Client::JsonChatPhoto : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonMaskPosition : public Jsonable {
+class Client::JsonMaskPosition final : public Jsonable {
  public:
   explicit JsonMaskPosition(const td_api::maskPosition *mask_position) : mask_position_(mask_position) {
   }
@@ -965,7 +964,7 @@ class Client::JsonMaskPosition : public Jsonable {
   const td_api::maskPosition *mask_position_;
 };
 
-class Client::JsonSticker : public Jsonable {
+class Client::JsonSticker final : public Jsonable {
  public:
   JsonSticker(const td_api::sticker *sticker, const Client *client) : sticker_(sticker), client_(client) {
   }
@@ -980,9 +979,14 @@ class Client::JsonSticker : public Jsonable {
     if (!set_name.empty()) {
       object("set_name", set_name);
     }
-    object("is_animated", td::JsonBool(sticker_->is_animated_));
-    if (sticker_->mask_position_ != nullptr) {
-      object("mask_position", JsonMaskPosition(sticker_->mask_position_.get()));
+    auto type = sticker_->type_->get_id();
+    object("is_animated", td::JsonBool(type == td_api::stickerTypeAnimated::ID));
+    object("is_video", td::JsonBool(type == td_api::stickerTypeVideo::ID));
+    if (type == td_api::stickerTypeMask::ID) {
+      const auto &mask_position = static_cast<const td_api::stickerTypeMask *>(sticker_->type_.get())->mask_position_;
+      if (mask_position != nullptr) {
+        object("mask_position", JsonMaskPosition(mask_position.get()));
+      }
     }
     client_->json_store_thumbnail(object, sticker_->thumbnail_.get());
     client_->json_store_file(object, sticker_->sticker_.get());
@@ -993,7 +997,7 @@ class Client::JsonSticker : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonStickers : public Jsonable {
+class Client::JsonStickers final : public Jsonable {
  public:
   JsonStickers(const td::vector<object_ptr<td_api::sticker>> &stickers, const Client *client)
       : stickers_(stickers), client_(client) {
@@ -1010,7 +1014,7 @@ class Client::JsonStickers : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVideo : public Jsonable {
+class Client::JsonVideo final : public Jsonable {
  public:
   JsonVideo(const td_api::video *video, const Client *client) : video_(video), client_(client) {
   }
@@ -1034,7 +1038,7 @@ class Client::JsonVideo : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVideoNote : public Jsonable {
+class Client::JsonVideoNote final : public Jsonable {
  public:
   JsonVideoNote(const td_api::videoNote *video_note, const Client *client) : video_note_(video_note), client_(client) {
   }
@@ -1051,7 +1055,7 @@ class Client::JsonVideoNote : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVoiceNote : public Jsonable {
+class Client::JsonVoiceNote final : public Jsonable {
  public:
   JsonVoiceNote(const td_api::voiceNote *voice_note, const Client *client) : voice_note_(voice_note), client_(client) {
   }
@@ -1069,7 +1073,7 @@ class Client::JsonVoiceNote : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVenue : public Jsonable {
+class Client::JsonVenue final : public Jsonable {
  public:
   explicit JsonVenue(const td_api::venue *venue) : venue_(venue) {
   }
@@ -1100,7 +1104,7 @@ class Client::JsonVenue : public Jsonable {
   const td_api::venue *venue_;
 };
 
-class Client::JsonContact : public Jsonable {
+class Client::JsonContact final : public Jsonable {
  public:
   explicit JsonContact(const td_api::contact *contact) : contact_(contact) {
   }
@@ -1123,7 +1127,7 @@ class Client::JsonContact : public Jsonable {
   const td_api::contact *contact_;
 };
 
-class Client::JsonDice : public Jsonable {
+class Client::JsonDice final : public Jsonable {
  public:
   JsonDice(const td::string &emoji, int32 value) : emoji_(emoji), value_(value) {
   }
@@ -1138,7 +1142,7 @@ class Client::JsonDice : public Jsonable {
   int32 value_;
 };
 
-class Client::JsonGame : public Jsonable {
+class Client::JsonGame final : public Jsonable {
  public:
   JsonGame(const td_api::game *game, const Client *client) : game_(game), client_(client) {
   }
@@ -1164,7 +1168,7 @@ class Client::JsonGame : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonInvoice : public Jsonable {
+class Client::JsonInvoice final : public Jsonable {
  public:
   explicit JsonInvoice(const td_api::messageInvoice *invoice) : invoice_(invoice) {
   }
@@ -1185,7 +1189,7 @@ class Client::JsonInvoice : public Jsonable {
   const td_api::messageInvoice *invoice_;
 };
 
-class Client::JsonPollOption : public Jsonable {
+class Client::JsonPollOption final : public Jsonable {
  public:
   explicit JsonPollOption(const td_api::pollOption *option) : option_(option) {
   }
@@ -1200,7 +1204,7 @@ class Client::JsonPollOption : public Jsonable {
   const td_api::pollOption *option_;
 };
 
-class Client::JsonPoll : public Jsonable {
+class Client::JsonPoll final : public Jsonable {
  public:
   JsonPoll(const td_api::poll *poll, const Client *client) : poll_(poll), client_(client) {
   }
@@ -1247,7 +1251,7 @@ class Client::JsonPoll : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonPollAnswer : public Jsonable {
+class Client::JsonPollAnswer final : public Jsonable {
  public:
   JsonPollAnswer(const td_api::updatePollAnswer *poll_answer, const Client *client)
       : poll_answer_(poll_answer), client_(client) {
@@ -1264,7 +1268,7 @@ class Client::JsonPollAnswer : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonAddress : public Jsonable {
+class Client::JsonAddress final : public Jsonable {
  public:
   explicit JsonAddress(const td_api::address *address) : address_(address) {
   }
@@ -1282,7 +1286,7 @@ class Client::JsonAddress : public Jsonable {
   const td_api::address *address_;
 };
 
-class Client::JsonOrderInfo : public Jsonable {
+class Client::JsonOrderInfo final : public Jsonable {
  public:
   explicit JsonOrderInfo(const td_api::orderInfo *order_info) : order_info_(order_info) {
   }
@@ -1306,7 +1310,7 @@ class Client::JsonOrderInfo : public Jsonable {
   const td_api::orderInfo *order_info_;
 };
 
-class Client::JsonSuccessfulPaymentBot : public Jsonable {
+class Client::JsonSuccessfulPaymentBot final : public Jsonable {
  public:
   explicit JsonSuccessfulPaymentBot(const td_api::messagePaymentSuccessfulBot *successful_payment)
       : successful_payment_(successful_payment) {
@@ -1336,7 +1340,7 @@ class Client::JsonSuccessfulPaymentBot : public Jsonable {
   const td_api::messagePaymentSuccessfulBot *successful_payment_;
 };
 
-class Client::JsonEncryptedPassportElement : public Jsonable {
+class Client::JsonEncryptedPassportElement final : public Jsonable {
  public:
   JsonEncryptedPassportElement(const td_api::encryptedPassportElement *element, const Client *client)
       : element_(element), client_(client) {
@@ -1403,7 +1407,7 @@ class Client::JsonEncryptedPassportElement : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonEncryptedCredentials : public Jsonable {
+class Client::JsonEncryptedCredentials final : public Jsonable {
  public:
   explicit JsonEncryptedCredentials(const td_api::encryptedCredentials *credentials) : credentials_(credentials) {
   }
@@ -1418,7 +1422,7 @@ class Client::JsonEncryptedCredentials : public Jsonable {
   const td_api::encryptedCredentials *credentials_;
 };
 
-class Client::JsonPassportData : public Jsonable {
+class Client::JsonPassportData final : public Jsonable {
  public:
   JsonPassportData(const td_api::messagePassportDataReceived *passport_data, const Client *client)
       : passport_data_(passport_data), client_(client) {
@@ -1436,7 +1440,7 @@ class Client::JsonPassportData : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonProximityAlertTriggered : public Jsonable {
+class Client::JsonProximityAlertTriggered final : public Jsonable {
  public:
   JsonProximityAlertTriggered(const td_api::messageProximityAlertTriggered *proximity_alert_triggered,
                               const Client *client)
@@ -1454,7 +1458,7 @@ class Client::JsonProximityAlertTriggered : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonVideoChatScheduled : public Jsonable {
+class Client::JsonVideoChatScheduled final : public Jsonable {
  public:
   explicit JsonVideoChatScheduled(const td_api::messageVideoChatScheduled *video_chat_scheduled)
       : video_chat_scheduled_(video_chat_scheduled) {
@@ -1468,14 +1472,14 @@ class Client::JsonVideoChatScheduled : public Jsonable {
   const td_api::messageVideoChatScheduled *video_chat_scheduled_;
 };
 
-class Client::JsonVideoChatStarted : public Jsonable {
+class Client::JsonVideoChatStarted final : public Jsonable {
  public:
   void store(JsonValueScope *scope) const {
     auto object = scope->enter_object();
   }
 };
 
-class Client::JsonVideoChatEnded : public Jsonable {
+class Client::JsonVideoChatEnded final : public Jsonable {
  public:
   explicit JsonVideoChatEnded(const td_api::messageVideoChatEnded *video_chat_ended)
       : video_chat_ended_(video_chat_ended) {
@@ -1489,7 +1493,7 @@ class Client::JsonVideoChatEnded : public Jsonable {
   const td_api::messageVideoChatEnded *video_chat_ended_;
 };
 
-class Client::JsonInviteVideoChatParticipants : public Jsonable {
+class Client::JsonInviteVideoChatParticipants final : public Jsonable {
  public:
   JsonInviteVideoChatParticipants(const td_api::messageInviteVideoChatParticipants *invite_video_chat_participants,
                                   const Client *client)
@@ -1505,7 +1509,7 @@ class Client::JsonInviteVideoChatParticipants : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatSetTtl : public Jsonable {
+class Client::JsonChatSetTtl final : public Jsonable {
  public:
   explicit JsonChatSetTtl(const td_api::messageChatSetTtl *chat_set_ttl) : chat_set_ttl_(chat_set_ttl) {
   }
@@ -1518,14 +1522,14 @@ class Client::JsonChatSetTtl : public Jsonable {
   const td_api::messageChatSetTtl *chat_set_ttl_;
 };
 
-class Client::JsonCallbackGame : public Jsonable {
+class Client::JsonCallbackGame final : public Jsonable {
  public:
   void store(JsonValueScope *scope) const {
     auto object = scope->enter_object();
   }
 };
 
-class Client::JsonInlineKeyboardButton : public Jsonable {
+class Client::JsonInlineKeyboardButton final : public Jsonable {
  public:
   explicit JsonInlineKeyboardButton(const td_api::inlineKeyboardButton *button) : button_(button) {
   }
@@ -1583,7 +1587,7 @@ class Client::JsonInlineKeyboardButton : public Jsonable {
   const td_api::inlineKeyboardButton *button_;
 };
 
-class Client::JsonInlineKeyboard : public Jsonable {
+class Client::JsonInlineKeyboard final : public Jsonable {
  public:
   explicit JsonInlineKeyboard(const td_api::replyMarkupInlineKeyboard *inline_keyboard)
       : inline_keyboard_(inline_keyboard) {
@@ -1599,7 +1603,7 @@ class Client::JsonInlineKeyboard : public Jsonable {
   const td_api::replyMarkupInlineKeyboard *inline_keyboard_;
 };
 
-class Client::JsonReplyMarkup : public Jsonable {
+class Client::JsonReplyMarkup final : public Jsonable {
  public:
   explicit JsonReplyMarkup(const td_api::ReplyMarkup *reply_markup) : reply_markup_(reply_markup) {
   }
@@ -1951,7 +1955,7 @@ void Client::JsonMessage::store(JsonValueScope *scope) const {
   }
 }
 
-class Client::JsonDeletedMessage : public Jsonable {
+class Client::JsonDeletedMessage final : public Jsonable {
  public:
   JsonDeletedMessage(int64 chat_id, int64 message_id, const Client *client)
       : chat_id_(chat_id), message_id_(message_id), client_(client) {
@@ -1969,7 +1973,7 @@ class Client::JsonDeletedMessage : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonDeletedMessages : public Jsonable {
+class Client::JsonDeletedMessages final : public Jsonable {
  public:
   JsonDeletedMessages(int64 chat_id, td::vector<int64> message_ids, const Client *client)
       : chat_id_(chat_id), message_ids_(message_ids), client_(client) {
@@ -1987,7 +1991,7 @@ class Client::JsonDeletedMessages : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonMessageId : public Jsonable {
+class Client::JsonMessageId final : public Jsonable {
  public:
   explicit JsonMessageId(int64 message_id) : message_id_(message_id) {
   }
@@ -2000,7 +2004,7 @@ class Client::JsonMessageId : public Jsonable {
   int64 message_id_;
 };
 
-class Client::JsonInlineQuery : public Jsonable {
+class Client::JsonInlineQuery final : public Jsonable {
  public:
   JsonInlineQuery(int64 inline_query_id, int64 sender_user_id, const td_api::location *user_location,
                   const td_api::ChatType *chat_type, const td::string &query, const td::string &offset,
@@ -2066,7 +2070,7 @@ class Client::JsonInlineQuery : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChosenInlineResult : public Jsonable {
+class Client::JsonChosenInlineResult final : public Jsonable {
  public:
   JsonChosenInlineResult(int64 sender_user_id, const td_api::location *user_location, const td::string &query,
                          const td::string &result_id, const td::string &inline_message_id, const Client *client)
@@ -2100,7 +2104,7 @@ class Client::JsonChosenInlineResult : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonCallbackQuery : public Jsonable {
+class Client::JsonCallbackQuery final : public Jsonable {
  public:
   JsonCallbackQuery(int64 callback_query_id, int64 sender_user_id, int64 chat_id, int64 message_id,
                     const MessageInfo *message_info, int64 chat_instance, td_api::CallbackQueryPayload *payload,
@@ -2139,7 +2143,7 @@ class Client::JsonCallbackQuery : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonInlineCallbackQuery : public Jsonable {
+class Client::JsonInlineCallbackQuery final : public Jsonable {
  public:
   JsonInlineCallbackQuery(int64 callback_query_id, int64 sender_user_id, const td::string &inline_message_id,
                           int64 chat_instance, td_api::CallbackQueryPayload *payload, const Client *client)
@@ -2169,7 +2173,7 @@ class Client::JsonInlineCallbackQuery : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonShippingQuery : public Jsonable {
+class Client::JsonShippingQuery final : public Jsonable {
  public:
   JsonShippingQuery(const td_api::updateNewShippingQuery *query, const Client *client)
       : query_(query), client_(client) {
@@ -2193,7 +2197,7 @@ class Client::JsonShippingQuery : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonPreCheckoutQuery : public Jsonable {
+class Client::JsonPreCheckoutQuery final : public Jsonable {
  public:
   JsonPreCheckoutQuery(const td_api::updateNewPreCheckoutQuery *query, const Client *client)
       : query_(query), client_(client) {
@@ -2224,7 +2228,7 @@ class Client::JsonPreCheckoutQuery : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonCustomJson : public Jsonable {
+class Client::JsonCustomJson final : public Jsonable {
  public:
   explicit JsonCustomJson(const td::string &json) : json_(json) {
   }
@@ -2237,7 +2241,7 @@ class Client::JsonCustomJson : public Jsonable {
   const td::string &json_;
 };
 
-class Client::JsonBotCommand : public Jsonable {
+class Client::JsonBotCommand final : public Jsonable {
  public:
   explicit JsonBotCommand(const td_api::botCommand *command) : command_(command) {
   }
@@ -2251,7 +2255,7 @@ class Client::JsonBotCommand : public Jsonable {
   const td_api::botCommand *command_;
 };
 
-class Client::JsonChatPhotos : public Jsonable {
+class Client::JsonChatPhotos final : public Jsonable {
  public:
   JsonChatPhotos(const td_api::chatPhotos *photos, const Client *client) : photos_(photos), client_(client) {
   }
@@ -2267,7 +2271,7 @@ class Client::JsonChatPhotos : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatMember : public Jsonable {
+class Client::JsonChatMember final : public Jsonable {
  public:
   JsonChatMember(const td_api::chatMember *member, Client::ChatType chat_type, const Client *client)
       : member_(member), chat_type_(chat_type), client_(client) {
@@ -2358,7 +2362,7 @@ class Client::JsonChatMember : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatMembers : public Jsonable {
+class Client::JsonChatMembers final : public Jsonable {
  public:
   JsonChatMembers(const td::vector<object_ptr<td_api::chatMember>> &members, Client::ChatType chat_type,
                   bool administrators_only, const Client *client)
@@ -2395,7 +2399,7 @@ class Client::JsonChatMembers : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatMemberUpdated : public Jsonable {
+class Client::JsonChatMemberUpdated final : public Jsonable {
  public:
   JsonChatMemberUpdated(const td_api::updateChatMember *update, const Client *client)
       : update_(update), client_(client) {
@@ -2418,7 +2422,7 @@ class Client::JsonChatMemberUpdated : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonChatJoinRequest : public Jsonable {
+class Client::JsonChatJoinRequest final : public Jsonable {
  public:
   JsonChatJoinRequest(const td_api::updateNewChatJoinRequest *update, const Client *client)
       : update_(update), client_(client) {
@@ -2441,7 +2445,7 @@ class Client::JsonChatJoinRequest : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonGameHighScore : public Jsonable {
+class Client::JsonGameHighScore final : public Jsonable {
  public:
   JsonGameHighScore(const td_api::gameHighScore *score, const Client *client) : score_(score), client_(client) {
   }
@@ -2458,7 +2462,7 @@ class Client::JsonGameHighScore : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonUpdateTypes : public Jsonable {
+class Client::JsonUpdateTypes final : public Jsonable {
  public:
   explicit JsonUpdateTypes(td::uint32 update_types) : update_types_(update_types) {
   }
@@ -2478,7 +2482,7 @@ class Client::JsonUpdateTypes : public Jsonable {
   td::uint32 update_types_;
 };
 
-class Client::JsonWebhookInfo : public Jsonable {
+class Client::JsonWebhookInfo final : public Jsonable {
  public:
   explicit JsonWebhookInfo(const Client *client) : client_(client) {
   }
@@ -2516,7 +2520,7 @@ class Client::JsonWebhookInfo : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonStickerSet : public Jsonable {
+class Client::JsonStickerSet final : public Jsonable {
  public:
   JsonStickerSet(const td_api::stickerSet *sticker_set, const Client *client)
       : sticker_set_(sticker_set), client_(client) {
@@ -2532,8 +2536,10 @@ class Client::JsonStickerSet : public Jsonable {
     if (sticker_set_->thumbnail_ != nullptr) {
       client_->json_store_thumbnail(object, sticker_set_->thumbnail_.get());
     }
-    object("is_animated", td::JsonBool(sticker_set_->is_animated_));
-    object("contains_masks", td::JsonBool(sticker_set_->is_masks_));
+    auto type = sticker_set_->sticker_type_->get_id();
+    object("is_animated", td::JsonBool(type == td_api::stickerTypeAnimated::ID));
+    object("is_video", td::JsonBool(type == td_api::stickerTypeVideo::ID));
+    object("contains_masks", td::JsonBool(type == td_api::stickerTypeMask::ID));
     object("stickers", JsonStickers(sticker_set_->stickers_, client_));
   }
 
@@ -2542,9 +2548,9 @@ class Client::JsonStickerSet : public Jsonable {
   const Client *client_;
 };
 
-class Client::TdOnOkCallback : public TdQueryCallback {
+class Client::TdOnOkCallback final : public TdQueryCallback {
  public:
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->code_ != 401 && error->code_ != 406 && error->code_ != 500) {
@@ -2554,12 +2560,12 @@ class Client::TdOnOkCallback : public TdQueryCallback {
   }
 };
 
-class Client::TdOnAuthorizationCallback : public TdQueryCallback {
+class Client::TdOnAuthorizationCallback final : public TdQueryCallback {
  public:
   explicit TdOnAuthorizationCallback(Client *client) : client_(client) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     bool was_ready = client_->authorization_state_->get_id() != td_api::authorizationStateWaitPhoneNumber::ID;
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
@@ -2579,12 +2585,12 @@ class Client::TdOnAuthorizationCallback : public TdQueryCallback {
   Client *client_;
 };
 
-class Client::TdOnInitCallback : public TdQueryCallback {
+class Client::TdOnInitCallback final : public TdQueryCallback {
  public:
   explicit TdOnInitCallback(Client *client) : client_(client) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       LOG(WARNING) << "Failed to initialize due to " << td::oneline(to_string(result));
       client_->close();
@@ -2595,13 +2601,13 @@ class Client::TdOnInitCallback : public TdQueryCallback {
   Client *client_;
 };
 
-class Client::TdOnGetUserProfilePhotosCallback : public TdQueryCallback {
+class Client::TdOnGetUserProfilePhotosCallback final : public TdQueryCallback {
  public:
   TdOnGetUserProfilePhotosCallback(const Client *client, PromisedQueryPtr query)
       : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2616,12 +2622,12 @@ class Client::TdOnGetUserProfilePhotosCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnSendMessageCallback : public TdQueryCallback {
+class Client::TdOnSendMessageCallback final : public TdQueryCallback {
  public:
   TdOnSendMessageCallback(Client *client, PromisedQueryPtr query) : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2636,12 +2642,12 @@ class Client::TdOnSendMessageCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnSendMessageAlbumCallback : public TdQueryCallback {
+class Client::TdOnSendMessageAlbumCallback final : public TdQueryCallback {
  public:
   TdOnSendMessageAlbumCallback(Client *client, PromisedQueryPtr query) : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2659,7 +2665,7 @@ class Client::TdOnSendMessageAlbumCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnDeleteFailedToSendMessageCallback : public TdQueryCallback {
+class Client::TdOnDeleteFailedToSendMessageCallback final : public TdQueryCallback {
  public:
   TdOnDeleteFailedToSendMessageCallback(Client *client, int64 chat_id, int64 message_id)
       : client_(client)
@@ -2668,10 +2674,10 @@ class Client::TdOnDeleteFailedToSendMessageCallback : public TdQueryCallback {
       , old_chat_description_(client->get_chat_description(chat_id)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
-      if (error->code_ != 401) {
+      if (error->code_ != 401 && !client_->need_close_ && !client_->closing_ && !client_->logging_out_) {
         LOG(ERROR) << "Can't delete failed to send message " << message_id_ << " because of "
                    << td::oneline(to_string(error)) << " in " << client_->get_chat_description(chat_id_)
                    << ". Old chat description: " << old_chat_description_;
@@ -2693,12 +2699,12 @@ class Client::TdOnDeleteFailedToSendMessageCallback : public TdQueryCallback {
   td::string old_chat_description_;
 };
 
-class Client::TdOnEditMessageCallback : public TdQueryCallback {
+class Client::TdOnEditMessageCallback final : public TdQueryCallback {
  public:
   TdOnEditMessageCallback(const Client *client, PromisedQueryPtr query) : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2721,12 +2727,12 @@ class Client::TdOnEditMessageCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnEditInlineMessageCallback : public TdQueryCallback {
+class Client::TdOnEditInlineMessageCallback final : public TdQueryCallback {
  public:
   explicit TdOnEditInlineMessageCallback(PromisedQueryPtr query) : query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2739,13 +2745,13 @@ class Client::TdOnEditInlineMessageCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnStopPollCallback : public TdQueryCallback {
+class Client::TdOnStopPollCallback final : public TdQueryCallback {
  public:
   TdOnStopPollCallback(const Client *client, int64 chat_id, int64 message_id, PromisedQueryPtr query)
       : client_(client), chat_id_(chat_id), message_id_(message_id), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2770,13 +2776,13 @@ class Client::TdOnStopPollCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnOkQueryCallback : public TdQueryCallback {
+class Client::TdOnOkQueryCallback final : public TdQueryCallback {
  public:
   explicit TdOnOkQueryCallback(PromisedQueryPtr query) : query_(std::move(query)) {
     CHECK(query_ != nullptr);
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -2790,13 +2796,13 @@ class Client::TdOnOkQueryCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckUserCallback : public TdQueryCallback {
+class Client::TdOnCheckUserCallback final : public TdQueryCallback {
  public:
   TdOnCheckUserCallback(const Client *client, PromisedQueryPtr query, OnSuccess on_success)
       : client_(client), query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "user not found");
     }
@@ -2816,13 +2822,13 @@ class Client::TdOnCheckUserCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckUserNoFailCallback : public TdQueryCallback {
+class Client::TdOnCheckUserNoFailCallback final : public TdQueryCallback {
  public:
   TdOnCheckUserNoFailCallback(PromisedQueryPtr query, OnSuccess on_success)
       : query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     on_success_(std::move(query_));
   }
 
@@ -2832,7 +2838,7 @@ class Client::TdOnCheckUserNoFailCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckChatCallback : public TdQueryCallback {
+class Client::TdOnCheckChatCallback final : public TdQueryCallback {
  public:
   TdOnCheckChatCallback(const Client *client, bool only_supergroup, AccessRights access_rights, PromisedQueryPtr query,
                         OnSuccess on_success)
@@ -2843,7 +2849,7 @@ class Client::TdOnCheckChatCallback : public TdQueryCallback {
       , on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "chat not found");
     }
@@ -2869,13 +2875,13 @@ class Client::TdOnCheckChatCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckChatNoFailCallback : public TdQueryCallback {
+class Client::TdOnCheckChatNoFailCallback final : public TdQueryCallback {
  public:
   TdOnCheckChatNoFailCallback(int64 chat_id, PromisedQueryPtr query, OnSuccess on_success)
       : chat_id_(chat_id), query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     on_success_(chat_id_, std::move(query_));
   }
 
@@ -2886,13 +2892,13 @@ class Client::TdOnCheckChatNoFailCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnSearchStickerSetCallback : public TdQueryCallback {
+class Client::TdOnSearchStickerSetCallback final : public TdQueryCallback {
  public:
   TdOnSearchStickerSetCallback(PromisedQueryPtr query, OnSuccess on_success)
       : query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "sticker set not found");
     }
@@ -2907,13 +2913,13 @@ class Client::TdOnSearchStickerSetCallback : public TdQueryCallback {
   OnSuccess on_success_;
 };
 
-class Client::TdOnResolveBotUsernameCallback : public TdQueryCallback {
+class Client::TdOnResolveBotUsernameCallback final : public TdQueryCallback {
  public:
   TdOnResolveBotUsernameCallback(Client *client, td::string username)
       : client_(client), username_(std::move(username)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return client_->on_resolve_bot_username(username_, 0);
     }
@@ -2940,7 +2946,7 @@ class Client::TdOnResolveBotUsernameCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckMessageCallback : public TdQueryCallback {
+class Client::TdOnCheckMessageCallback final : public TdQueryCallback {
  public:
   TdOnCheckMessageCallback(Client *client, int64 chat_id, int64 message_id, bool allow_empty, Slice message_type,
                            PromisedQueryPtr query, OnSuccess on_success)
@@ -2953,7 +2959,7 @@ class Client::TdOnCheckMessageCallback : public TdQueryCallback {
       , on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->code_ == 429) {
@@ -2983,13 +2989,13 @@ class Client::TdOnCheckMessageCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnCheckRemoteFileIdCallback : public TdQueryCallback {
+class Client::TdOnCheckRemoteFileIdCallback final : public TdQueryCallback {
  public:
   TdOnCheckRemoteFileIdCallback(PromisedQueryPtr query, OnSuccess on_success)
       : query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "invalid file_id");
     }
@@ -3004,13 +3010,13 @@ class Client::TdOnCheckRemoteFileIdCallback : public TdQueryCallback {
 };
 
 template <class OnSuccess>
-class Client::TdOnGetChatMemberCallback : public TdQueryCallback {
+class Client::TdOnGetChatMemberCallback final : public TdQueryCallback {
  public:
   TdOnGetChatMemberCallback(PromisedQueryPtr query, OnSuccess on_success)
       : query_(std::move(query)), on_success_(std::move(on_success)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "user not found");
     }
@@ -3024,12 +3030,12 @@ class Client::TdOnGetChatMemberCallback : public TdQueryCallback {
   OnSuccess on_success_;
 };
 
-class Client::TdOnDownloadFileCallback : public TdQueryCallback {
+class Client::TdOnDownloadFileCallback final : public TdQueryCallback {
  public:
   TdOnDownloadFileCallback(Client *client, int32 file_id) : client_(client), file_id_(file_id) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       return client_->on_file_download(file_id_, Status::Error(error->code_, error->message_));
@@ -3046,9 +3052,9 @@ class Client::TdOnDownloadFileCallback : public TdQueryCallback {
   int32 file_id_;
 };
 
-class Client::TdOnCancelDownloadFileCallback : public TdQueryCallback {
+class Client::TdOnCancelDownloadFileCallback final : public TdQueryCallback {
  public:
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       LOG(ERROR) << "Failed to cancel download file";
       return;
@@ -3057,12 +3063,12 @@ class Client::TdOnCancelDownloadFileCallback : public TdQueryCallback {
   }
 };
 
-class Client::TdOnGetReplyMessageCallback : public TdQueryCallback {
+class Client::TdOnGetReplyMessageCallback final : public TdQueryCallback {
  public:
   TdOnGetReplyMessageCallback(Client *client, int64 chat_id) : client_(client), chat_id_(chat_id) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return client_->on_get_reply_message(chat_id_, nullptr);
     }
@@ -3076,12 +3082,12 @@ class Client::TdOnGetReplyMessageCallback : public TdQueryCallback {
   int64 chat_id_;
 };
 
-class Client::TdOnGetEditedMessageCallback : public TdQueryCallback {
+class Client::TdOnGetEditedMessageCallback final : public TdQueryCallback {
  public:
   explicit TdOnGetEditedMessageCallback(Client *client) : client_(client) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->code_ == 429) {
@@ -3098,13 +3104,13 @@ class Client::TdOnGetEditedMessageCallback : public TdQueryCallback {
   Client *client_;
 };
 
-class Client::TdOnGetCallbackQueryMessageCallback : public TdQueryCallback {
+class Client::TdOnGetCallbackQueryMessageCallback final : public TdQueryCallback {
  public:
   TdOnGetCallbackQueryMessageCallback(Client *client, int64 user_id, int state)
       : client_(client), user_id_(user_id), state_(state) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->code_ == 429) {
@@ -3123,7 +3129,7 @@ class Client::TdOnGetCallbackQueryMessageCallback : public TdQueryCallback {
   int state_;
 };
 
-class Client::TdOnGetStickerSetCallback : public TdQueryCallback {
+class Client::TdOnGetStickerSetCallback final : public TdQueryCallback {
  public:
   TdOnGetStickerSetCallback(Client *client, int64 set_id, int64 new_callback_query_user_id, int64 new_message_chat_id)
       : client_(client)
@@ -3132,7 +3138,7 @@ class Client::TdOnGetStickerSetCallback : public TdQueryCallback {
       , new_message_chat_id_(new_message_chat_id) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
       if (error->message_ != "STICKERSET_INVALID" && error->code_ != 401 && error->code_ != 500) {
@@ -3155,13 +3161,13 @@ class Client::TdOnGetStickerSetCallback : public TdQueryCallback {
   int64 new_message_chat_id_;
 };
 
-class Client::TdOnGetChatStickerSetCallback : public TdQueryCallback {
+class Client::TdOnGetChatStickerSetCallback final : public TdQueryCallback {
  public:
   TdOnGetChatStickerSetCallback(Client *client, int64 chat_id, int64 pinned_message_id, PromisedQueryPtr query)
       : client_(client), chat_id_(chat_id), pinned_message_id_(pinned_message_id), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       auto chat_info = client_->get_chat(chat_id_);
       CHECK(chat_info != nullptr);
@@ -3183,13 +3189,13 @@ class Client::TdOnGetChatStickerSetCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetChatPinnedMessageCallback : public TdQueryCallback {
+class Client::TdOnGetChatPinnedMessageCallback final : public TdQueryCallback {
  public:
   TdOnGetChatPinnedMessageCallback(Client *client, int64 chat_id, PromisedQueryPtr query)
       : client_(client), chat_id_(chat_id), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     int64 pinned_message_id = 0;
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
@@ -3229,13 +3235,13 @@ class Client::TdOnGetChatPinnedMessageCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetChatPinnedMessageToUnpinCallback : public TdQueryCallback {
+class Client::TdOnGetChatPinnedMessageToUnpinCallback final : public TdQueryCallback {
  public:
   TdOnGetChatPinnedMessageToUnpinCallback(Client *client, int64 chat_id, PromisedQueryPtr query)
       : client_(client), chat_id_(chat_id), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     int64 pinned_message_id = 0;
     if (result->get_id() == td_api::error::ID) {
       auto error = move_object_as<td_api::error>(result);
@@ -3262,12 +3268,12 @@ class Client::TdOnGetChatPinnedMessageToUnpinCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetMyCommandsCallback : public TdQueryCallback {
+class Client::TdOnGetMyCommandsCallback final : public TdQueryCallback {
  public:
   explicit TdOnGetMyCommandsCallback(PromisedQueryPtr query) : query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3282,13 +3288,13 @@ class Client::TdOnGetMyCommandsCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetChatFullInfoCallback : public TdQueryCallback {
+class Client::TdOnGetChatFullInfoCallback final : public TdQueryCallback {
  public:
   TdOnGetChatFullInfoCallback(Client *client, int64 chat_id, PromisedQueryPtr query)
       : client_(client), chat_id_(chat_id), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3305,13 +3311,13 @@ class Client::TdOnGetChatFullInfoCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetGroupMembersCallback : public TdQueryCallback {
+class Client::TdOnGetGroupMembersCallback final : public TdQueryCallback {
  public:
   TdOnGetGroupMembersCallback(const Client *client, bool administrators_only, PromisedQueryPtr query)
       : client_(client), administrators_only_(administrators_only), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3328,13 +3334,13 @@ class Client::TdOnGetGroupMembersCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetSupergroupMembersCallback : public TdQueryCallback {
+class Client::TdOnGetSupergroupMembersCallback final : public TdQueryCallback {
  public:
   TdOnGetSupergroupMembersCallback(const Client *client, Client::ChatType chat_type, PromisedQueryPtr query)
       : client_(client), chat_type_(chat_type), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3350,12 +3356,12 @@ class Client::TdOnGetSupergroupMembersCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetSupergroupMembersCountCallback : public TdQueryCallback {
+class Client::TdOnGetSupergroupMembersCountCallback final : public TdQueryCallback {
  public:
   explicit TdOnGetSupergroupMembersCountCallback(PromisedQueryPtr query) : query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3369,12 +3375,12 @@ class Client::TdOnGetSupergroupMembersCountCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnReplacePrimaryChatInviteLinkCallback : public TdQueryCallback {
+class Client::TdOnReplacePrimaryChatInviteLinkCallback final : public TdQueryCallback {
  public:
   explicit TdOnReplacePrimaryChatInviteLinkCallback(PromisedQueryPtr query) : query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3388,13 +3394,13 @@ class Client::TdOnReplacePrimaryChatInviteLinkCallback : public TdQueryCallback 
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetChatInviteLinkCallback : public TdQueryCallback {
+class Client::TdOnGetChatInviteLinkCallback final : public TdQueryCallback {
  public:
   TdOnGetChatInviteLinkCallback(const Client *client, PromisedQueryPtr query)
       : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3415,13 +3421,13 @@ class Client::TdOnGetChatInviteLinkCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnGetGameHighScoresCallback : public TdQueryCallback {
+class Client::TdOnGetGameHighScoresCallback final : public TdQueryCallback {
  public:
   TdOnGetGameHighScoresCallback(const Client *client, PromisedQueryPtr query)
       : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3438,12 +3444,12 @@ class Client::TdOnGetGameHighScoresCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnReturnFileCallback : public TdQueryCallback {
+class Client::TdOnReturnFileCallback final : public TdQueryCallback {
  public:
   TdOnReturnFileCallback(const Client *client, PromisedQueryPtr query) : client_(client), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3458,13 +3464,13 @@ class Client::TdOnReturnFileCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnReturnStickerSetCallback : public TdQueryCallback {
+class Client::TdOnReturnStickerSetCallback final : public TdQueryCallback {
  public:
   TdOnReturnStickerSetCallback(Client *client, bool return_sticker_set, PromisedQueryPtr query)
       : client_(client), return_sticker_set_(return_sticker_set), query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3485,12 +3491,12 @@ class Client::TdOnReturnStickerSetCallback : public TdQueryCallback {
   PromisedQueryPtr query_;
 };
 
-class Client::TdOnSendCustomRequestCallback : public TdQueryCallback {
+class Client::TdOnSendCustomRequestCallback final : public TdQueryCallback {
  public:
   explicit TdOnSendCustomRequestCallback(PromisedQueryPtr query) : query_(std::move(query)) {
   }
 
-  void on_result(object_ptr<td_api::Object> result) override {
+  void on_result(object_ptr<td_api::Object> result) final {
     if (result->get_id() == td_api::error::ID) {
       return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
     }
@@ -3590,14 +3596,14 @@ void Client::start_up() {
   }
   dir_ = parameters_->working_directory_ + suff;
 
-  class TdCallback : public td::TdCallback {
+  class TdCallback final : public td::TdCallback {
    public:
     explicit TdCallback(td::ActorId<Client> client) : client_(std::move(client)) {
     }
-    void on_result(td::uint64 id, object_ptr<td_api::Object> result) override {
+    void on_result(td::uint64 id, object_ptr<td_api::Object> result) final {
       send_closure_later(client_, &Client::on_result, id, std::move(result));
     }
-    void on_error(td::uint64 id, object_ptr<td_api::error> result) override {
+    void on_error(td::uint64 id, object_ptr<td_api::error> result) final {
       send_closure_later(client_, &Client::on_result, id, std::move(result));
     }
 
@@ -4220,6 +4226,7 @@ void Client::on_update_authorization_state() {
     case td_api::authorizationStateReady::ID: {
       auto user_info = get_user_info(my_id_);
       if (my_id_ <= 0 || user_info == nullptr) {
+        LOG(INFO) << "Send getMe request for " << my_id_;
         return send_request(make_object<td_api::getMe>(), std::make_unique<TdOnAuthorizationCallback>(this));
       }
 
@@ -4645,7 +4652,7 @@ void Client::on_closed() {
   if (logging_out_) {
     parameters_->shared_data_->webhook_db_->erase(bot_token_with_dc_);
 
-    class RmWorker : public td::Actor {
+    class RmWorker final : public td::Actor {
      public:
       RmWorker(td::string dir, td::ActorId<Client> parent) : dir_(std::move(dir)), parent_(std::move(parent)) {
       }
@@ -4654,13 +4661,13 @@ void Client::on_closed() {
       td::string dir_;
       td::ActorId<Client> parent_;
 
-      void start_up() override {
+      void start_up() final {
         CHECK(dir_.size() >= 24);
         CHECK(dir_.back() == TD_DIR_SLASH);
         td::rmrf(dir_).ignore();
         stop();
       }
-      void tear_down() override {
+      void tear_down() final {
         send_closure(parent_, &Client::finish_closing);
       }
     };
@@ -5810,28 +5817,41 @@ td::Result<td_api::object_ptr<td_api::maskPosition>> Client::get_mask_position(c
   return r_mask_position.move_as_ok();
 }
 
-td::Result<td::vector<td_api::object_ptr<td_api::InputSticker>>> Client::get_input_stickers(const Query *query) const {
+td::Result<td::vector<td_api::object_ptr<td_api::inputSticker>>> Client::get_input_stickers(const Query *query,
+                                                                                            bool is_masks) const {
   auto emojis = query->arg("emojis");
 
-  td::vector<object_ptr<td_api::InputSticker>> stickers;
   auto sticker = get_input_file(query, "png_sticker");
+  object_ptr<td_api::StickerType> sticker_type;
   if (sticker != nullptr) {
-    TRY_RESULT(mask_position, get_mask_position(query, "mask_position"));
-    stickers.push_back(
-        make_object<td_api::inputStickerStatic>(std::move(sticker), emojis.str(), std::move(mask_position)));
+    if (is_masks) {
+      TRY_RESULT(mask_position, get_mask_position(query, "mask_position"));
+      sticker_type = make_object<td_api::stickerTypeMask>(std::move(mask_position));
+    } else {
+      sticker_type = make_object<td_api::stickerTypeStatic>();
+    }
   } else {
     sticker = get_input_file(query, "tgs_sticker", true);
-    if (sticker == nullptr) {
-      if (query->arg("tgs_sticker").empty()) {
+    if (sticker != nullptr) {
+      sticker_type = make_object<td_api::stickerTypeAnimated>();
+    } else {
+      sticker = get_input_file(query, "webm_sticker", true);
+      if (sticker != nullptr) {
+        sticker_type = make_object<td_api::stickerTypeVideo>();
+      } else {
+        if (!query->arg("tgs_sticker").empty()) {
+          return Status::Error(400, "Bad Request: animated sticker must be uploaded as an InputFile");
+        }
+        if (!query->arg("webm_sticker").empty()) {
+          return Status::Error(400, "Bad Request: video sticker must be uploaded as an InputFile");
+        }
         return Status::Error(400, "Bad Request: there is no sticker file in the request");
       }
-      return Status::Error(400, "Bad Request: TGS sticker must be uploaded as an InputFile");
     }
-
-    stickers.push_back(make_object<td_api::inputStickerAnimated>(std::move(sticker), emojis.str()));
   }
-  CHECK(stickers.size() == 1);
 
+  td::vector<object_ptr<td_api::inputSticker>> stickers;
+  stickers.push_back(make_object<td_api::inputSticker>(std::move(sticker), emojis.str(), std::move(sticker_type)));
   return std::move(stickers);
 }
 
@@ -7881,7 +7901,8 @@ td::Status Client::process_upload_sticker_file_query(PromisedQueryPtr &query) {
   check_user(user_id, std::move(query),
              [this, user_id, png_sticker = std::move(png_sticker)](PromisedQueryPtr query) mutable {
                send_request(make_object<td_api::uploadStickerFile>(
-                                user_id, make_object<td_api::inputStickerStatic>(std::move(png_sticker), "", nullptr)),
+                                user_id, make_object<td_api::inputSticker>(std::move(png_sticker), "",
+                                                                           make_object<td_api::stickerTypeStatic>())),
                             std::make_unique<TdOnReturnFileCallback>(this, std::move(query)));
              });
   return Status::OK();
@@ -7892,11 +7913,11 @@ td::Status Client::process_create_new_sticker_set_query(PromisedQueryPtr &query)
   auto name = query->arg("name");
   auto title = query->arg("title");
   auto is_masks = to_bool(query->arg("contains_masks"));
-  TRY_RESULT(stickers, get_input_stickers(query.get()));
+  TRY_RESULT(stickers, get_input_stickers(query.get(), is_masks));
 
   check_user(user_id, std::move(query),
-             [this, user_id, title, name, is_masks, stickers = std::move(stickers)](PromisedQueryPtr query) mutable {
-               send_request(make_object<td_api::createNewStickerSet>(user_id, title.str(), name.str(), is_masks,
+             [this, user_id, title, name, stickers = std::move(stickers)](PromisedQueryPtr query) mutable {
+               send_request(make_object<td_api::createNewStickerSet>(user_id, title.str(), name.str(),
                                                                      std::move(stickers), PSTRING() << "bot" << my_id_),
                             std::make_unique<TdOnReturnStickerSetCallback>(this, false, std::move(query)));
              });
@@ -7906,7 +7927,7 @@ td::Status Client::process_create_new_sticker_set_query(PromisedQueryPtr &query)
 td::Status Client::process_add_sticker_to_set_query(PromisedQueryPtr &query) {
   TRY_RESULT(user_id, get_user_id(query.get()));
   auto name = query->arg("name");
-  TRY_RESULT(stickers, get_input_stickers(query.get()));
+  TRY_RESULT(stickers, get_input_stickers(query.get(), true));
   CHECK(!stickers.empty());
 
   check_user(user_id, std::move(query),
@@ -8445,7 +8466,7 @@ void Client::fail_query_conflict(Slice message, PromisedQueryPtr &&query) {
   }
 }
 
-class Client::JsonUpdates : public Jsonable {
+class Client::JsonUpdates final : public Jsonable {
  public:
   explicit JsonUpdates(td::Span<td::TQueue::Event> updates) : updates_(updates) {
   }
@@ -8483,7 +8504,8 @@ void Client::do_get_updates(int32 offset, int32 limit, int32 timeout, PromisedQu
     }
   }
 
-  auto updates = mutable_span(parameters_->shared_data_->event_buffer_, SharedData::TQUEUE_EVENT_BUFFER_SIZE);
+  td::MutableSpan<td::TQueue::Event> updates(parameters_->shared_data_->event_buffer_,
+                                             SharedData::TQUEUE_EVENT_BUFFER_SIZE);
   updates.truncate(limit);
   td::TQueue::EventId from;
   size_t total_size = 0;
@@ -8970,11 +8992,11 @@ bool Client::update_allowed_update_types(const Query *query) {
 }
 
 template <class T>
-class UpdateJsonable : public td::VirtuallyJsonable {
+class UpdateJsonable final : public td::VirtuallyJsonable {
  public:
   explicit UpdateJsonable(const T &update) : update(update) {
   }
-  void store(JsonValueScope *scope) const override {
+  void store(JsonValueScope *scope) const final {
     *scope << update;
   }
 
@@ -9933,7 +9955,7 @@ td::int64 Client::as_tdlib_message_id(int32 message_id) {
 }
 
 td::int32 Client::as_client_message_id(int64 message_id) {
-  int32 result = static_cast<int32>(message_id >> 20);
+  auto result = static_cast<int32>(message_id >> 20);
   CHECK(as_tdlib_message_id(result) == message_id);
   return result;
 }

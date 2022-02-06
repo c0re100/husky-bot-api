@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
   auto start_time = td::Time::now();
   auto shared_data = std::make_shared<SharedData>();
   auto parameters = std::make_unique<ClientParameters>();
-  parameters->version_ = "5.6";
+  parameters->version_ = "5.7";
   parameters->shared_data_ = shared_data;
   parameters->start_time_ = start_time;
   auto net_query_stats = td::create_net_query_stats();
@@ -311,16 +311,16 @@ int main(int argc, char *argv[]) {
   options.add_checked_option('c', "max-connections", "maximum number of open file descriptors",
                              td::OptionParser::parse_integer(max_connections));
 
-  options.add_checked_option(
-      '\0', "proxy", PSLICE() << "HTTP proxy server for outgoing webhook requests in the format http://host:port",
-      [&](td::Slice address) {
-        if (td::begins_with(address, "http://")) {
-          address.remove_prefix(7);
-        } else if (td::begins_with(address, "https://")) {
-          address.remove_prefix(8);
-        }
-        return parameters->webhook_proxy_ip_address_.init_host_port(address.str());
-      });
+  options.add_checked_option('\0', "proxy",
+                             "HTTP proxy server for outgoing webhook requests in the format http://host:port",
+                             [&](td::Slice address) {
+                               if (td::begins_with(address, "http://")) {
+                                 address.remove_prefix(7);
+                               } else if (td::begins_with(address, "https://")) {
+                                 address.remove_prefix(8);
+                               }
+                               return parameters->webhook_proxy_ip_address_.init_host_port(address.str());
+                             });
   options.add_check([&] {
     if (parameters->api_id_ <= 0 || parameters->api_hash_.empty()) {
       return td::Status::Error("You must provide valid api-id and api-hash obtained at https://my.telegram.org");
