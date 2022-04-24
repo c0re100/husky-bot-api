@@ -2474,7 +2474,7 @@ class Client::JsonChatMembers final : public Jsonable {
 //      }
       auto user_id = static_cast<const td_api::messageSenderUser *>(member->member_id_.get())->user_id_;
       auto user_info = client_->get_user_info(user_id);
-      bool is_member_bot = user_info != nullptr && user_info->type == UserInfo::Type::Bot;
+//      bool is_member_bot = user_info != nullptr && user_info->type == UserInfo::Type::Bot;
 //      if (is_member_bot && user_id != client_->my_id_) {
 //        continue;
 //      }
@@ -7582,7 +7582,7 @@ td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
     }
 
     send_request(make_object<td_api::deleteMessages>(chat_id_int, std::move(messages_array), true),
-                 std::make_unique<TdOnOkQueryCallback>(std::move(query)));
+                 td::make_unique<TdOnOkQueryCallback>(std::move(query)));
     return Status::OK();
   } else if (message_id == 0) {
     return Status::Error(400, "Message identifier is not specified");
@@ -8531,7 +8531,7 @@ td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
         auto group_info = get_group_info(chat_info->group_id);
         CHECK(group_info != nullptr);
         return send_request(make_object<td_api::getBasicGroupFullInfo>(chat_info->group_id),
-                            std::make_unique<TdOnGetGroupMembersCallback>(this, false, std::move(query)));
+                            td::make_unique<TdOnGetGroupMembersCallback>(this, false, std::move(query)));
       }
       case ChatInfo::Type::Supergroup: {
         auto offset = get_integer_arg(query.get(), "offset", 0);
@@ -8556,7 +8556,7 @@ td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
         return send_request(
             make_object<td_api::getSupergroupMembers>(
                 chat_info->supergroup_id, std::move(filter), offset, limit),
-            std::make_unique<TdOnGetSupergroupMembersCallback>(this, get_chat_type(chat_id), std::move(query)));
+            td::make_unique<TdOnGetSupergroupMembersCallback>(this, get_chat_type(chat_id), std::move(query)));
       }
       case ChatInfo::Type::Unknown:
       default:
