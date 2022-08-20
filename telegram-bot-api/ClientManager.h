@@ -11,13 +11,13 @@
 #include "telegram-bot-api/Stats.h"
 
 #include "td/actor/actor.h"
-#include "td/actor/PromiseFuture.h"
 
 #include "td/utils/buffer.h"
 #include "td/utils/common.h"
 #include "td/utils/Container.h"
 #include "td/utils/FlatHashMap.h"
 #include "td/utils/FloodControlFast.h"
+#include "td/utils/Promise.h"
 #include "td/utils/Slice.h"
 
 #include <memory>
@@ -43,7 +43,7 @@ class ClientManager final : public td::Actor {
 
   void send(PromisedQueryPtr query);
 
-  void get_stats(td::PromiseActor<td::BufferSlice> promise, td::vector<std::pair<td::string, td::string>> args);
+  void get_stats(td::Promise<td::BufferSlice> promise, td::vector<std::pair<td::string, td::string>> args);
 
   void close(td::Promise<td::Unit> &&promise);
 

@@ -16,7 +16,6 @@
 #include "td/net/HttpFile.h"
 
 #include "td/actor/actor.h"
-#include "td/actor/PromiseFuture.h"
 #include "td/actor/SignalSlot.h"
 
 #include "td/utils/common.h"
@@ -24,6 +23,7 @@
 #include "td/utils/FlatHashMap.h"
 #include "td/utils/FlatHashSet.h"
 #include "td/utils/JsonBuilder.h"
+#include "td/utils/Promise.h"
 #include "td/utils/Slice.h"
 #include "td/utils/Status.h"
 
@@ -42,6 +42,11 @@ class Client final : public WebhookActor::Callback {
  public:
   Client(td::ActorShared<> parent, const td::string &bot_token, bool is_test_dc, td::int64 tqueue_id,
          std::shared_ptr<const ClientParameters> parameters, td::ActorId<BotStatActor> stat_actor);
+  Client(const Client &) = delete;
+  Client &operator=(const Client &) = delete;
+  Client(Client &&) = delete;
+  Client &operator=(Client &&) = delete;
+  ~Client();
 
   void send(PromisedQueryPtr query) final;
 
@@ -196,6 +201,8 @@ class Client final : public WebhookActor::Callback {
   class TdOnAnswerWebAppQueryCallback;
   class TdOnReturnFileCallback;
   class TdOnReturnStickerSetCallback;
+  class TdOnGetStickerSetPromiseCallback;
+  class TdOnGetStickersCallback;
   class TdOnDownloadFileCallback;
   class TdOnCancelDownloadFileCallback;
   class TdOnSendCustomRequestCallback;
@@ -303,6 +310,10 @@ class Client final : public WebhookActor::Callback {
   void on_closed();
   void finish_closing();
 
+  static int32 get_database_scheduler_id();
+
+  static int32 get_file_gc_scheduler_id();
+
   void clear_tqueue();
 
   bool allow_update_before_authorization(const td_api::Object *update) const;
@@ -389,7 +400,7 @@ class Client final : public WebhookActor::Callback {
 
   static object_ptr<td_api::MaskPoint> mask_index_to_point(int32 index);
 
-  td::Result<td::vector<object_ptr<td_api::inputSticker>>> get_input_stickers(const Query *query, bool is_masks) const;
+  td::Result<td::vector<object_ptr<td_api::inputSticker>>> get_input_stickers(const Query *query) const;
 
   static td::Result<td::string> get_passport_element_hash(Slice encoded_hash);
 
@@ -536,6 +547,7 @@ class Client final : public WebhookActor::Callback {
   Status process_approve_chat_join_request_query(PromisedQueryPtr &query);
   Status process_decline_chat_join_request_query(PromisedQueryPtr &query);
   Status process_get_sticker_set_query(PromisedQueryPtr &query);
+  Status process_get_custom_emoji_stickers_query(PromisedQueryPtr &query);
   Status process_upload_sticker_file_query(PromisedQueryPtr &query);
   Status process_create_new_sticker_set_query(PromisedQueryPtr &query);
   Status process_add_sticker_to_set_query(PromisedQueryPtr &query);
@@ -564,6 +576,8 @@ class Client final : public WebhookActor::Callback {
   void save_webhook() const;
   td::string get_webhook_certificate_path() const;
 
+  void on_webhook_closed(Status status);
+
   void do_send_message(object_ptr<td_api::InputMessageContent> input_message_content, PromisedQueryPtr query);
 
   int64 get_send_message_query_id(PromisedQueryPtr query, bool is_multisend);
@@ -574,6 +588,8 @@ class Client final : public WebhookActor::Callback {
 
   bool is_file_being_downloaded(int32 file_id) const;
   void on_file_download(int32 file_id, td::Result<object_ptr<td_api::file>> r_file);
+
+  void return_stickers(object_ptr<td_api::stickers> stickers, PromisedQueryPtr query);
 
   void fix_reply_markup_bot_user_ids(object_ptr<td_api::ReplyMarkup> &reply_markup) const;
   void fix_inline_query_results_bot_user_ids(td::vector<object_ptr<td_api::InputInlineQueryResult>> &results) const;
@@ -623,6 +639,7 @@ class Client final : public WebhookActor::Callback {
     bool can_read_all_group_messages = false;
     bool is_inline_bot = false;
     bool has_private_forwards = false;
+    bool has_restricted_voice_and_video_messages = false;
     bool is_premium = false;
     bool added_to_attachment_menu = false;
   };
@@ -630,6 +647,7 @@ class Client final : public WebhookActor::Callback {
   void set_user_photo(int64 user_id, object_ptr<td_api::chatPhoto> &&photo);
   void set_user_bio(int64 user_id, td::string &&bio);
   void set_user_has_private_forwards(int64 user_id, bool has_private_forwards);
+  void set_user_has_restricted_voice_and_video_messages(int64 user_id, bool has_restricted_voice_and_video_messages);
   UserInfo *add_user_info(int64 user_id);
   const UserInfo *get_user_info(int64 user_id) const;
 
@@ -734,6 +752,10 @@ class Client final : public WebhookActor::Callback {
   static int64 &get_reply_to_message_id(object_ptr<td_api::message> &message);
 
   void set_message_reply_to_message_id(MessageInfo *message_info, int64 reply_to_message_id);
+
+  static Slice get_sticker_type(const object_ptr<td_api::StickerType> &type);
+
+  static td::Result<object_ptr<td_api::StickerType>> get_sticker_type(Slice type);
 
   static td::CSlice get_callback_data(const object_ptr<td_api::InlineKeyboardButtonType> &type);
 

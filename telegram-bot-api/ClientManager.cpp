@@ -118,7 +118,7 @@ void ClientManager::send(PromisedQueryPtr query) {
       flood_control.add_event(static_cast<td::int32>(now));
     }
     auto tqueue_id = get_tqueue_id(user_id, query->is_test_dc());
-    if (active_client_count_.find(tqueue_id) != active_client_count_.end()) {
+    if (active_client_count_.count(tqueue_id) != 0) {
       // return query->set_retry_after_error(1);
     }
 
@@ -145,7 +145,7 @@ void ClientManager::send(PromisedQueryPtr query) {
                std::move(query));  // will send 429 if the client is already closed
 }
 
-void ClientManager::get_stats(td::PromiseActor<td::BufferSlice> promise,
+void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
                               td::vector<std::pair<td::string, td::string>> args) {
   if (close_flag_) {
     promise.set_value(td::BufferSlice("Closing"));
@@ -414,7 +414,7 @@ PromisedQueryPtr ClientManager::get_webhook_restore_query(td::Slice token, td::S
   auto query = td::make_unique<Query>(std::move(containers), token, is_test_dc, method, std::move(args),
                                       td::vector<std::pair<td::MutableSlice, td::MutableSlice>>(),
                                       td::vector<td::HttpFile>(), std::move(shared_data), td::IPAddress(), true);
-  return PromisedQueryPtr(query.release(), PromiseDeleter(td::PromiseActor<td::unique_ptr<Query>>()));
+  return PromisedQueryPtr(query.release(), PromiseDeleter(td::Promise<td::unique_ptr<Query>>()));
 }
 
 void ClientManager::raw_event(const td::Event::Raw &event) {
