@@ -4,6 +4,7 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
+#include "td/telegram/td_api.h"
 #include "telegram-bot-api/Client.h"
 
 #include "telegram-bot-api/ClientParameters.h"
@@ -4514,7 +4515,7 @@ void Client::on_update_authorization_state() {
                                                   make_object<td_api::optionValueBoolean>(true)),
                    td::make_unique<TdOnOkCallback>());
 
-      auto parameters = make_object<td_api::tdlibParameters>();
+      auto parameters = make_object<td_api::setTdlibParameters>();
 
       parameters->use_test_dc_ = is_test_dc_;
       parameters->database_directory_ = dir_;
@@ -4530,11 +4531,9 @@ void Client::on_update_authorization_state() {
       parameters->enable_storage_optimizer_ = true;
       parameters->ignore_file_names_ = true;
 
-      return send_request(make_object<td_api::setTdlibParameters>(std::move(parameters)),
+      return send_request(std::move(parameters),
                           td::make_unique<TdOnInitCallback>(this));
     }
-    case td_api::authorizationStateWaitEncryptionKey::ID:
-      return send_request(make_object<td_api::checkDatabaseEncryptionKey>(), td::make_unique<TdOnInitCallback>(this));
     case td_api::authorizationStateWaitPhoneNumber::ID:
       send_request(make_object<td_api::setOption>("online", make_object<td_api::optionValueBoolean>(true)),
                    td::make_unique<TdOnOkCallback>());
@@ -5661,7 +5660,7 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
 
 td_api::object_ptr<td_api::messageSendOptions> Client::get_message_send_options(bool disable_notification,
                                                                                 bool protect_content) {
-  return make_object<td_api::messageSendOptions>(disable_notification, false, protect_content, nullptr);
+  return make_object<td_api::messageSendOptions>(disable_notification, false, protect_content, false, nullptr);
 }
 
 td::Result<td::vector<td_api::object_ptr<td_api::InputInlineQueryResult>>> Client::get_inline_query_results(

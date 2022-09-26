@@ -192,9 +192,9 @@ int main(int argc, char *argv[]) {
   td::set_signal_handler(td::SignalType::Other, fail_signal_handler).ensure();
   td::set_extended_signal_handler(td::SignalType::Error, sigsegv_signal_handler).ensure();
 
-  td::set_runtime_signal_handler(0, change_verbosity_level_signal_handler).ensure();
-  td::set_runtime_signal_handler(1, dump_log_signal_handler).ensure();
-  td::set_runtime_signal_handler(2, dump_stacktrace_signal_handler).ensure();
+  td::set_real_time_signal_handler(0, change_verbosity_level_signal_handler).ensure();
+  td::set_real_time_signal_handler(1, dump_log_signal_handler).ensure();
+  td::set_real_time_signal_handler(2, dump_stacktrace_signal_handler).ensure();
 
   td::init_openssl_threads();
 
@@ -464,8 +464,7 @@ int main(int argc, char *argv[]) {
   LOG(WARNING) << "Bot API " << parameters->version_ << " server started";
 
   const int threads_n = 5;  // +3 for Td, one for slow HTTP connections and one for DNS resolving
-  td::ConcurrentScheduler sched;
-  sched.init(threads_n);
+  td::ConcurrentScheduler sched(threads_n);
 
   td::GetHostByNameActor::Options get_host_by_name_options;
   get_host_by_name_options.scheduler_id = threads_n;
