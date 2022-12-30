@@ -9187,7 +9187,7 @@ td::Status Client::process_get_message_query(PromisedQueryPtr &query) {
   auto message_id = get_message_id(query.get());
 
   check_message(chat_id, message_id, false, AccessRights::Read, "message", std::move(query),[this] (int64 chat_id, int64 message_id, PromisedQueryPtr query) {
-    auto message = get_message(chat_id, message_id);
+    auto message = get_message(chat_id, message_id, false);
     answer_query(JsonMessage(message, false, "get message", this), std::move(query));
   });
 
