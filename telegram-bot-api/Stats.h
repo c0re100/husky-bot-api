@@ -115,6 +115,7 @@ struct ServerBotStat {
   struct Response {
     bool ok_;
     size_t size_;
+    td::int64 file_count_;
     td::int64 files_size_;
   };
   void on_event(const Response &response) {
@@ -181,13 +182,18 @@ class BotStatActor final : public td::Actor {
   }
 
   td::vector<StatItem> as_vector(double now);
+
   td::string get_description() const;
 
   double get_score(double now);
 
+  double get_minute_update_count(double now);
+
   td::int64 get_active_request_count() const;
 
   td::int64 get_active_file_upload_bytes() const;
+
+  td::int64 get_active_file_upload_count() const;
 
   bool is_active(double now) const;
 
@@ -201,12 +207,14 @@ class BotStatActor final : public td::Actor {
   double last_activity_timestamp_ = -1e9;
   td::int64 active_request_count_ = 0;
   td::int64 active_file_upload_bytes_ = 0;
+  td::int64 active_file_upload_count_ = 0;
 
   void on_event(const ServerBotStat::Update &update) {
   }
 
   void on_event(const ServerBotStat::Response &response) {
     active_request_count_--;
+    active_file_upload_count_ -= response.file_count_;
     active_file_upload_bytes_ -= response.files_size_;
     CHECK(active_request_count_ >= 0);
     CHECK(active_file_upload_bytes_ >= 0);
@@ -214,6 +222,7 @@ class BotStatActor final : public td::Actor {
 
   void on_event(const ServerBotStat::Request &request) {
     active_request_count_++;
+    active_file_upload_count_ += request.file_count_;
     active_file_upload_bytes_ += request.files_size_;
   }
 };

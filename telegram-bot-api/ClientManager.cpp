@@ -114,13 +114,13 @@ void ClientManager::send(PromisedQueryPtr query) {
         flood_control.add_limit(60, 20);        // 20 in a minute
         flood_control.add_limit(60 * 60, 600);  // 600 in an hour
       }
-      auto now = static_cast<td::uint32>(td::Time::now());
-      td::uint32 wakeup_at = flood_control.get_wakeup_at();
+      auto now = td::Time::now();
+      auto wakeup_at = flood_control.get_wakeup_at();
       if (wakeup_at > now) {
         LOG(INFO) << "Failed to create Client from IP address " << ip_address;
         return query->set_retry_after_error(static_cast<int>(wakeup_at - now) + 1);
       }
-      flood_control.add_event(static_cast<td::int32>(now));
+      flood_control.add_event(now);
     }
     auto tqueue_id = get_tqueue_id(user_id, query->is_test_dc());
     if (active_client_count_.count(tqueue_id) != 0) {
@@ -251,7 +251,7 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
     }
 
     sb << "<tr><td>buffer_memory</td><td>" << td::format::as_size(td::BufferAllocator::get_buffer_mem()) << "</td><td></td><td></td><td></td></tr>\n";
-    sb << "<tr><td>active_webhook_connections</td><td>" << WebhookActor::get_total_connections_count() << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_webhook_connections</td><td>" << WebhookActor::get_total_connection_count() << "</td><td></td><td></td><td></td></tr>\n";
     sb << "<tr><td>active_requests</td><td>" << parameters_->shared_data_->query_count_.load(std::memory_order_relaxed) << "</td><td></td><td></td><td></td></tr>\n";
     sb << "<tr><td>active_network_queries</td><td>" << td::get_pending_network_query_count(*parameters_->net_query_stats_) << "</td><td></td><td></td><td></td></tr>\n";
     auto stats = stat_.as_vector(now);
@@ -273,6 +273,7 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
     auto bot_info = client_info->client_.get_actor_unsafe()->get_bot_info();
     auto active_request_count = client_info->stat_.get_active_request_count();
     auto active_file_upload_bytes = client_info->stat_.get_active_file_upload_bytes();
+    auto active_file_upload_count = client_info->stat_.get_active_file_upload_count();
     sb << "<tr><td>id</td><td>" << bot_info.id_ << "</td><td></td><td></td><td></td></tr>";
     sb << "<tr><td>uptime</td><td>" << now - bot_info.start_time_ << "</td><td></td><td></td><td></td></tr>";
     sb << "<tr><td>token</td><td>" << bot_info.token_ << "</td><td></td><td></td><td></td></tr>";
@@ -286,6 +287,9 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
     }
     if (active_file_upload_bytes != 0) {
       sb << "<tr><td>active_file_upload_bytes</td><td>" << active_file_upload_bytes << "</td><td></td><td></td><td></td></tr>";
+    }
+    if (active_file_upload_count != 0) {
+      sb << "<tr><td>active_file_upload_count</td><td>" << active_file_upload_count << "</td><td></td><td></td><td></td></tr>";
     }
     if (!bot_info.webhook_.empty()) {
       sb << "<tr><td>webhook</td><td>" << bot_info.webhook_ << "</td><td></td><td></td><td></td></tr>";
