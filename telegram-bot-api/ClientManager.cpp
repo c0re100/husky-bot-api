@@ -1,5 +1,5 @@
 ﻿//
-// Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2021
+// Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com) 2014-2023
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -150,6 +150,39 @@ void ClientManager::send(PromisedQueryPtr query) {
                std::move(query));  // will send 429 if the client is already closed
 }
 
+ClientManager::TopClients ClientManager::get_top_clients(std::size_t max_count, td::Slice token_filter) {
+  auto now = td::Time::now();
+  TopClients result;
+  td::vector<std::pair<td::int64, td::uint64>> top_client_ids;
+  for (auto id : clients_.ids()) {
+    auto *client_info = clients_.get(id);
+    CHECK(client_info);
+
+    if (client_info->stat_.is_active(now)) {
+      result.active_count++;
+    }
+
+    if (!td::begins_with(client_info->token_, token_filter)) {
+      continue;
+    }
+
+    auto score = static_cast<td::int64>(client_info->stat_.get_score(now) * -1e9);
+    if (score == 0 && top_client_ids.size() >= max_count) {
+      continue;
+    }
+    top_client_ids.emplace_back(score, id);
+  }
+  if (top_client_ids.size() < max_count) {
+    max_count = top_client_ids.size();
+  }
+  std::partial_sort(top_client_ids.begin(), top_client_ids.begin() + max_count, top_client_ids.end());
+  result.top_client_ids.reserve(max_count);
+  for (std::size_t i = 0; i < max_count; i++) {
+    result.top_client_ids.push_back(top_client_ids[i].second);
+  }
+  return result;
+}
+
 void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
                               td::vector<std::pair<td::string, td::string>> args) {
   if (close_flag_) {
@@ -186,33 +219,7 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
   }
 
   auto now = td::Time::now();
-  td::int32 active_bot_count = 0;
-  td::vector<std::pair<td::int64, td::uint64>> top_bot_ids;
-  size_t max_bots = 50;
-  for (auto id : clients_.ids()) {
-    auto *client_info = clients_.get(id);
-    CHECK(client_info);
-
-    if (client_info->stat_.is_active(now)) {
-      active_bot_count++;
-    }
-
-    if (!td::begins_with(client_info->token_, id_filter)) {
-      continue;
-    }
-
-    auto score = static_cast<td::int64>(client_info->stat_.get_score(now) * -1e9);
-    if (score == 0 && top_bot_ids.size() >= max_bots) {
-      continue;
-    }
-    top_bot_ids.emplace_back(score, id);
-  }
-  if (top_bot_ids.size() < max_bots) {
-    max_bots = top_bot_ids.size();
-  }
-  std::partial_sort(top_bot_ids.begin(), top_bot_ids.begin() + max_bots, top_bot_ids.end());
-  top_bot_ids.resize(max_bots);
-
+  auto top_clients = get_top_clients(50, id_filter);
   td::string style = "<style>\n"
       "table {\n"
       "  width: 1px;\n"
@@ -232,7 +239,7 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
   if (id_filter.empty()) {
     sb << "<tr><td>uptime</td><td>" << now - parameters_->start_time_ << "</td><td></td><td></td><td></td></tr>\n";
     sb << "<tr><td>bot_count</td><td>" << clients_.size() << "</td><td></td><td></td><td></td></tr>\n";
-    sb << "<tr><td>active_bot_count</td><td>" << active_bot_count << "</td><td></td><td></td><td></td></tr>\n";
+    sb << "<tr><td>active_bot_count</td><td>" << top_clients.active_count << "</td><td></td><td></td><td></td></tr>\n";
     auto r_mem_stat = td::mem_stat();
     if (r_mem_stat.is_ok()) {
       auto mem_stat = r_mem_stat.move_as_ok();
@@ -266,8 +273,8 @@ void ClientManager::get_stats(td::Promise<td::BufferSlice> promise,
   sb << "<th>Name</th><th>Value</th>";
   sb << "<th>5sec</th><th>1min</th><th>1hour</th>";
 
-  for (auto top_bot_id : top_bot_ids) {
-    auto *client_info = clients_.get(top_bot_id.second);
+  for (auto top_client_id : top_clients.top_client_ids) {
+    auto *client_info = clients_.get(top_client_id);
     CHECK(client_info);
 
     auto bot_info = client_info->client_.get_actor_unsafe()->get_bot_info();
@@ -400,7 +407,7 @@ PromisedQueryPtr ClientManager::get_webhook_restore_query(td::Slice token, td::S
   td::vector<td::BufferSlice> containers;
   auto add_string = [&containers](td::Slice str) {
     containers.emplace_back(str);
-    return containers.back().as_slice();
+    return containers.back().as_mutable_slice();
   };
 
   token = add_string(token);
@@ -506,6 +513,37 @@ void ClientManager::dump_statistics() {
   }
 
   td::dump_pending_network_queries(*parameters_->net_query_stats_);
+
+  auto now = td::Time::now();
+  auto top_clients = get_top_clients(10, {});
+  for (auto top_client_id : top_clients.top_client_ids) {
+    auto *client_info = clients_.get(top_client_id);
+    CHECK(client_info);
+
+    auto bot_info = client_info->client_.get_actor_unsafe()->get_bot_info();
+    td::string update_count;
+    td::string request_count;
+    auto replace_tabs = [](td::string &str) {
+      for (auto &c : str) {
+        if (c == '\t') {
+          c = ' ';
+        }
+      }
+    };
+    auto stats = client_info->stat_.as_vector(now);
+    for (auto &stat : stats) {
+      if (stat.key_ == "update_count") {
+        replace_tabs(stat.value_);
+        update_count = std::move(stat.value_);
+      }
+      if (stat.key_ == "request_count") {
+        replace_tabs(stat.value_);
+        request_count = std::move(stat.value_);
+      }
+    }
+    LOG(WARNING) << td::tag("id", bot_info.id_) << td::tag("update_count", update_count)
+                 << td::tag("request_count", request_count);
+  }
 }
 
 void ClientManager::raw_event(const td::Event::Raw &event) {
