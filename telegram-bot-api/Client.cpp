@@ -7052,7 +7052,7 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
       return Status::Error(400, PSLICE() << "Can't parse chat permissions: " << status.message());
     }
 
-    if ((can_send_other_messages || can_add_web_page_previews) && !use_independent_chat_permissions) {
+    if (can_add_web_page_previews && !use_independent_chat_permissions) {
       can_send_audios = true;
       can_send_documents = true;
       can_send_photos = true;
@@ -7074,34 +7074,34 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
     can_send_games = to_bool(query->arg("can_send_games"));
     can_use_inline_bots = to_bool(query->arg("can_use_inline_bots"));
     can_add_web_page_previews = to_bool(query->arg("can_add_web_page_previews"));
-    if ((can_send_other_messages || can_add_web_page_previews) && !use_independent_chat_permissions) {
+    if (can_add_web_page_previews && !use_independent_chat_permissions) {
       can_send_media_messages = true;
     }
     if (can_send_media_messages && !use_independent_chat_permissions) {
       can_send_messages = true;
     }
 
-//    if (can_send_messages && can_send_media_messages && can_send_stickers && can_send_animations && can_send_games && can_use_inline_bots && can_add_web_page_previews) {
-//      // legacy unrestrict
-//      can_send_polls = true;
-//      can_change_info = true;
-//      can_invite_users = true;
-//      can_pin_messages = true;
-//    } else if (query->has_arg("can_send_messages") || query->has_arg("can_send_media_messages") ||
-//                query->has_arg("can_send_stickers") || query->has_arg("can_send_animations") ||
-//                query->has_arg("can_send_games") || query->has_arg("can_use_inline_bots") ||
-//                query->has_arg("can_add_web_page_previews")) {
-//      allow_legacy = true;
-//    }
+    //    if (can_send_messages && can_send_media_messages && can_send_stickers && can_send_animations && can_send_games && can_use_inline_bots && can_add_web_page_previews) {
+    //      // legacy unrestrict
+    //      can_send_polls = true;
+    //      can_change_info = true;
+    //      can_invite_users = true;
+    //      can_pin_messages = true;
+    //    } else if (query->has_arg("can_send_messages") || query->has_arg("can_send_media_messages") ||
+    //                query->has_arg("can_send_stickers") || query->has_arg("can_send_animations") ||
+    //                query->has_arg("can_send_games") || query->has_arg("can_use_inline_bots") ||
+    //                query->has_arg("can_add_web_page_previews")) {
+    //      allow_legacy = true;
+    //    }
 
     can_send_audios = can_send_media_messages;
     can_send_documents = can_send_media_messages;
     can_send_photos = can_send_media_messages;
     can_send_videos = can_send_media_messages;
     can_send_video_notes = can_send_media_messages;
-//  if (can_send_stickers || can_send_animations || can_send_games || can_use_inline_bots || can_add_web_page_previews) {
-//    can_send_media_messages = true;
-//  }
+    //  if (can_send_stickers || can_send_animations || can_send_games || can_use_inline_bots || can_add_web_page_previews) {
+    //    can_send_media_messages = true;
+    //  }
 
     // Chat Permissions Compatibility
     auto can_send_other_messages = to_bool(query->arg("can_send_other_messages"));
@@ -7111,8 +7111,9 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
       can_send_games = true;
       can_use_inline_bots = true;
     }
+  }
 
-    return make_object<td_api::chatPermissions>(can_send_messages, can_send_audios, can_send_documents, can_send_photos,
+  return make_object<td_api::chatPermissions>(can_send_messages, can_send_audios, can_send_documents, can_send_photos,
                                               can_send_videos, can_send_video_notes, can_send_voice_notes,
                                               can_send_polls, can_send_stickers, can_send_animations, 
                                               can_send_games, can_use_inline_bots, can_add_web_page_previews,
