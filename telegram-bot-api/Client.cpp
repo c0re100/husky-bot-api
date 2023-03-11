@@ -2317,12 +2317,12 @@ class Client::JsonDeletedMessage final : public td::Jsonable {
   const Client *client_;
 };
 
-class Client::JsonDeletedMessages final : public Jsonable {
+class Client::JsonDeletedMessages final : public td::Jsonable {
  public:
   JsonDeletedMessages(int64 chat_id, td::vector<int64> message_ids, const Client *client)
       : chat_id_(chat_id), message_ids_(message_ids), client_(client) {
   }
-  void store(JsonValueScope *scope) const {
+  void store(td::JsonValueScope *scope) const {
     auto object = scope->enter_object();
     object("message_ids", td::json_array(message_ids_, [](int64 message_id) { return as_client_message_id(message_id); }));
     object("chat", JsonChat(chat_id_, false, client_));
@@ -2335,7 +2335,7 @@ class Client::JsonDeletedMessages final : public Jsonable {
   const Client *client_;
 };
 
-class Client::JsonMessageId final : public Jsonable {
+class Client::JsonMessageId final : public td::Jsonable {
  public:
   explicit JsonMessageId(int64 message_id) : message_id_(message_id) {
   }
@@ -8539,7 +8539,7 @@ td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
     }
 
     auto value = message_ids.move_as_ok();
-    if (value.type() != JsonValue::Type::Array) {
+    if (value.type() != td::JsonValue::Type::Array) {
       return td::Status::Error(400, "Field \"message_ids\" must be an Array");
     }
 
@@ -8551,7 +8551,7 @@ td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
     td::vector<int64> messages_array = {};
 
     for (auto &msg_id : value.get_array()) {
-      if (msg_id.type() == JsonValue::Type::Number) {
+      if (msg_id.type() == td::JsonValue::Type::Number) {
         auto id = as_tdlib_message_id(td::to_integer<int32>(msg_id.get_number()));
         if (id > 1048576) {
           messages_array.push_back(id);
@@ -9768,7 +9768,7 @@ td::Status Client::process_get_message_query(PromisedQueryPtr &query) {
     answer_query(JsonMessage(message, false, "get message", this), std::move(query));
   });
 
-  return Status::OK();
+  return td::Status::OK();
 }
 
 td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
@@ -9817,7 +9817,7 @@ td::Status Client::process_get_chat_members_query(PromisedQueryPtr &query) {
         UNREACHABLE();
     }
   });
-  return Status::OK();
+  return td::Status::OK();
 }
 
 void Client::do_get_file(object_ptr<td_api::file> file, PromisedQueryPtr query) {
@@ -10757,7 +10757,7 @@ td::Slice Client::get_update_type_name(UpdateType update_type) {
     case UpdateType::EditedMessage:
       return td::Slice("edited_message");
     case UpdateType::DeleteMessage:
-      return Slice("deleted_messages");
+      return td::Slice("deleted_messages");
     case UpdateType::ChannelPost:
       return td::Slice("channel_post");
     case UpdateType::EditedChannelPost:
