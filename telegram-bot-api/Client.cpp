@@ -385,6 +385,7 @@ class Client::JsonUser final : public td::Jsonable {
       : user_id_(user_id), client_(client), full_bot_info_(full_bot_info) {
   }
   void store(td::JsonValueScope *scope) const {
+    auto chat_info = client_->get_chat(user_id_);
     auto object = scope->enter_object();
     auto user_info = client_->get_user_info(user_id_);
     object("id", user_id_);
@@ -409,6 +410,9 @@ class Client::JsonUser final : public td::Jsonable {
     }
     if (user_info != nullptr && user_info->added_to_attachment_menu) {
       object("added_to_attachment_menu", td::JsonTrue());
+    }
+    if (!user_info->bio.empty()) {
+        object("bio", user_info->bio);
     }
     if (is_bot && full_bot_info_) {
       object("can_join_groups", td::JsonBool(user_info->can_join_groups));
