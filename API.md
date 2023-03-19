@@ -29,9 +29,9 @@ If you want to use this API without error, you need to modify your Bot API libra
 
 ## Chat Permissions ##
 
-As we know, Official Bot API have 8 permissions field.
+As we know, Official Bot API have 14 permissions field.
 
-But in this version, we have 11 permissions field.
+But in this version, we have 17 permissions field.
 
 Cause `can_send_other_messages` combine several permissions.
 
@@ -47,9 +47,14 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 *New Chat Permissions List*
 
 | Parameter                   | Type    | Description                                                                                                              |
-| --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `can_send_messages`         | Boolean | Optional. True, if the user is allowed to send text messages, contacts, locations and venues                             |
-| `can_send_media_messages`   | Boolean | Optional. True, if the user is allowed to send audios, documents, photos, videos, video notes and voice notes            |
+|-----------------------------|---------|--------------------------------------------------------------------------------------------------------------------------|
+| `can_send_basic_messages`   | Boolean | Optional. True, if the user can send text messages, contacts, invoices, locations, and venues                            |
+| `can_send_audios`           | Boolean | Optional. True, if the user can send music files                                                                         |
+| `can_send_documents`        | Boolean | Optional. True, if the user can send documents                                                                           |
+| `can_send_photos`           | Boolean | Optional. True, if the user can send audio photos                                                                        |
+| `can_send_videos`           | Boolean | Optional. True, if the user can send audio videos                                                                        |
+| `can_send_video_notes`      | Boolean | Optional. True, if the user can send video notes                                                                         |
+| `can_send_voice_notes`      | Boolean | Optional. True, if the user can send voice notes                                                                         |
 | `can_send_polls`            | Boolean | Optional. True, if the user is allowed to send polls                                                                     |
 | `can_send_stickers`         | Boolean | Optional. True, if the user is allowed to send stickers                                                                  |
 | `can_send_animations`       | Boolean | Optional. True, if the user is allowed to send animations                                                                |
@@ -59,8 +64,10 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 | `can_change_info`           | Boolean | Optional. True, if the user is allowed to change the chat title, photo and other settings. Ignored in public supergroups |
 | `can_invite_users`          | Boolean | Optional. True, if the user is allowed to invite new users to the chat                                                   |
 | `can_pin_messages`          | Boolean | Optional. True, if the user is allowed to pin messages. Ignored in public supergroups                                    |
+| `can_manage_topics`         | Boolean | Optional. True, if the user can manage topics                                                                            |
 | **Compatibility**           |         |                                                                                                                          |
 | `can_send_other_messages`   | Boolean | Optional. If you don't need to restrict `stickers`, `animations`, `games` and `inline bots`.                             |
+| `can_send_media_messages`   | Boolean | Optional. If you don't need to restrict `audios`, `documents`, `photos`, `videos`, `video notes` and `voice notes`.      |
 
 ## Chat Member ##
 
@@ -73,7 +80,7 @@ So Husky Bot API exposes `can_send_other_messages` and allow you restrict a grou
 
 ### User ###
 
-`User` now has 1 new field.
+`User` now has 3 new field.
 
 | Property      | Type    | Description                             |
 | ------------- | ------- | --------------------------------------- |
