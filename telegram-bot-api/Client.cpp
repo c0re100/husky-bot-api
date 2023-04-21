@@ -206,6 +206,8 @@ bool Client::init_methods() {
   methods_.emplace("deletemycommands", &Client::process_delete_my_commands_query);
   methods_.emplace("getmydefaultadministratorrights", &Client::process_get_my_default_administrator_rights_query);
   methods_.emplace("setmydefaultadministratorrights", &Client::process_set_my_default_administrator_rights_query);
+  methods_.emplace("getmyname", &Client::process_get_my_name_query);
+  methods_.emplace("setmyname", &Client::process_set_my_name_query);
   methods_.emplace("getmydescription", &Client::process_get_my_description_query);
   methods_.emplace("setmydescription", &Client::process_set_my_description_query);
   methods_.emplace("getmyshortdescription", &Client::process_get_my_short_description_query);
@@ -1846,10 +1848,28 @@ class Client::JsonInlineKeyboardButton final : public td::Jsonable {
         break;
       case td_api::inlineKeyboardButtonTypeSwitchInline::ID: {
         auto type = static_cast<const td_api::inlineKeyboardButtonTypeSwitchInline *>(button_->type_.get());
-        if (type->in_current_chat_) {
-          object("switch_inline_query_current_chat", type->query_);
-        } else {
-          object("switch_inline_query", type->query_);
+        switch (type->target_chat_->get_id()) {
+          case td_api::targetChatCurrent::ID:
+            object("switch_inline_query_current_chat", type->query_);
+            break;
+          case td_api::targetChatChosen::ID: {
+            auto target_chat = static_cast<const td_api::targetChatChosen *>(type->target_chat_.get());
+            if (target_chat->allow_user_chats_ && target_chat->allow_bot_chats_ && target_chat->allow_group_chats_ &&
+                target_chat->allow_channel_chats_) {
+              object("switch_inline_query", type->query_);
+            } else {
+              object("switch_inline_query_chosen_chat", td::json_object([&](auto &o) {
+                       o("query", type->query_);
+                       o("allow_user_chats", td::JsonBool(target_chat->allow_user_chats_));
+                       o("allow_bot_chats", td::JsonBool(target_chat->allow_bot_chats_));
+                       o("allow_group_chats", td::JsonBool(target_chat->allow_group_chats_));
+                       o("allow_channel_chats", td::JsonBool(target_chat->allow_channel_chats_));
+                     }));
+            }
+            break;
+          }
+          default:
+            UNREACHABLE();
         }
         break;
       }
@@ -2286,6 +2306,8 @@ void Client::JsonMessage::store(td::JsonValueScope *scope) const {
       object("chat_shared", JsonChatShared(content));
       break;
     }
+    case td_api::messageChatSetBackground::ID:
+      break;
     default:
       UNREACHABLE();
   }
@@ -2622,6 +2644,19 @@ class Client::JsonBotMenuButton final : public td::Jsonable {
   const td_api::botMenuButton *menu_button_;
 };
 
+class Client::JsonBotName final : public td::Jsonable {
+ public:
+  explicit JsonBotName(const td_api::text *text) : text_(text) {
+  }
+  void store(td::JsonValueScope *scope) const {
+    auto object = scope->enter_object();
+    object("name", text_->text_);
+  }
+
+ private:
+  const td_api::text *text_;
+};
+
 class Client::JsonBotInfoDescription final : public td::Jsonable {
  public:
   explicit JsonBotInfoDescription(const td_api::text *text) : text_(text) {
@@ -2811,6 +2846,9 @@ class Client::JsonChatMemberUpdated final : public td::Jsonable {
     object("new_chat_member", JsonChatMember(update_->new_chat_member_.get(), chat_type, client_));
     if (update_->invite_link_ != nullptr) {
       object("invite_link", JsonChatInviteLink(update_->invite_link_.get(), client_));
+    }
+    if (update_->via_chat_folder_invite_link_) {
+      object("via_chat_folder_invite_link", td::JsonTrue());
     }
   }
 
@@ -3794,6 +3832,25 @@ class Client::TdOnGetMyDefaultAdministratorRightsCallback final : public TdQuery
 
  private:
   bool for_channels_;
+  PromisedQueryPtr query_;
+};
+
+class Client::TdOnGetMyNameCallback final : public TdQueryCallback {
+ public:
+  explicit TdOnGetMyNameCallback(PromisedQueryPtr query) : query_(std::move(query)) {
+  }
+
+  void on_result(object_ptr<td_api::Object> result) final {
+    if (result->get_id() == td_api::error::ID) {
+      return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result));
+    }
+
+    CHECK(result->get_id() == td_api::text::ID);
+    auto text = move_object_as<td_api::text>(result);
+    answer_query(JsonBotName(text.get()), std::move(query_));
+  }
+
+ private:
   PromisedQueryPtr query_;
 };
 
@@ -5611,13 +5668,31 @@ td::Result<td_api::object_ptr<td_api::inlineKeyboardButton>> Client::get_inline_
   if (has_json_object_field(object, "switch_inline_query")) {
     TRY_RESULT(switch_inline_query, get_json_object_string_field(object, "switch_inline_query", false));
     return make_object<td_api::inlineKeyboardButton>(
-        text, make_object<td_api::inlineKeyboardButtonTypeSwitchInline>(switch_inline_query, false));
+        text, make_object<td_api::inlineKeyboardButtonTypeSwitchInline>(
+                  switch_inline_query, td_api::make_object<td_api::targetChatChosen>(true, true, true, true)));
+  }
+
+  if (has_json_object_field(object, "switch_inline_query_chosen_chat")) {
+    TRY_RESULT(switch_inline_query,
+               get_json_object_field(object, "switch_inline_query_chosen_chat", td::JsonValue::Type::Object, false));
+    CHECK(switch_inline_query.type() == td::JsonValue::Type::Object);
+    auto &switch_inline_query_object = switch_inline_query.get_object();
+    TRY_RESULT(query, get_json_object_string_field(switch_inline_query_object, "query"));
+    TRY_RESULT(allow_user_chats, get_json_object_bool_field(switch_inline_query_object, "allow_user_chats"));
+    TRY_RESULT(allow_bot_chats, get_json_object_bool_field(switch_inline_query_object, "allow_bot_chats"));
+    TRY_RESULT(allow_group_chats, get_json_object_bool_field(switch_inline_query_object, "allow_group_chats"));
+    TRY_RESULT(allow_channel_chats, get_json_object_bool_field(switch_inline_query_object, "allow_channel_chats"));
+    return make_object<td_api::inlineKeyboardButton>(
+        text, make_object<td_api::inlineKeyboardButtonTypeSwitchInline>(
+                  query, td_api::make_object<td_api::targetChatChosen>(allow_user_chats, allow_bot_chats,
+                                                                       allow_group_chats, allow_channel_chats)));
   }
 
   if (has_json_object_field(object, "switch_inline_query_current_chat")) {
     TRY_RESULT(switch_inline_query, get_json_object_string_field(object, "switch_inline_query_current_chat", false));
     return make_object<td_api::inlineKeyboardButton>(
-        text, make_object<td_api::inlineKeyboardButtonTypeSwitchInline>(switch_inline_query, true));
+        text, make_object<td_api::inlineKeyboardButtonTypeSwitchInline>(
+                  switch_inline_query, td_api::make_object<td_api::targetChatCurrent>()));
   }
 
   if (has_json_object_field(object, "login_url")) {
@@ -7931,9 +8006,24 @@ td::Status Client::process_set_my_default_administrator_rights_query(PromisedQue
   return td::Status::OK();
 }
 
+td::Status Client::process_get_my_name_query(PromisedQueryPtr &query) {
+  auto language_code = query->arg("language_code");
+  send_request(make_object<td_api::getBotName>(my_id_, language_code.str()),
+               td::make_unique<TdOnGetMyNameCallback>(std::move(query)));
+  return td::Status::OK();
+}
+
+td::Status Client::process_set_my_name_query(PromisedQueryPtr &query) {
+  auto language_code = query->arg("language_code");
+  auto name = query->arg("name");
+  send_request(make_object<td_api::setBotName>(my_id_, language_code.str(), name.str()),
+               td::make_unique<TdOnOkQueryCallback>(std::move(query)));
+  return td::Status::OK();
+}
+
 td::Status Client::process_get_my_description_query(PromisedQueryPtr &query) {
   auto language_code = query->arg("language_code");
-  send_request(make_object<td_api::getBotInfoDescription>(language_code.str()),
+  send_request(make_object<td_api::getBotInfoDescription>(my_id_, language_code.str()),
                td::make_unique<TdOnGetMyDescriptionCallback>(std::move(query)));
   return td::Status::OK();
 }
@@ -7941,14 +8031,14 @@ td::Status Client::process_get_my_description_query(PromisedQueryPtr &query) {
 td::Status Client::process_set_my_description_query(PromisedQueryPtr &query) {
   auto language_code = query->arg("language_code");
   auto description = query->arg("description");
-  send_request(make_object<td_api::setBotInfoDescription>(language_code.str(), description.str()),
+  send_request(make_object<td_api::setBotInfoDescription>(my_id_, language_code.str(), description.str()),
                td::make_unique<TdOnOkQueryCallback>(std::move(query)));
   return td::Status::OK();
 }
 
 td::Status Client::process_get_my_short_description_query(PromisedQueryPtr &query) {
   auto language_code = query->arg("language_code");
-  send_request(make_object<td_api::getBotInfoShortDescription>(language_code.str()),
+  send_request(make_object<td_api::getBotInfoShortDescription>(my_id_, language_code.str()),
                td::make_unique<TdOnGetMyShortDescriptionCallback>(std::move(query)));
   return td::Status::OK();
 }
@@ -7956,7 +8046,7 @@ td::Status Client::process_get_my_short_description_query(PromisedQueryPtr &quer
 td::Status Client::process_set_my_short_description_query(PromisedQueryPtr &query) {
   auto language_code = query->arg("language_code");
   auto short_description = query->arg("short_description");
-  send_request(make_object<td_api::setBotInfoShortDescription>(language_code.str(), short_description.str()),
+  send_request(make_object<td_api::setBotInfoShortDescription>(my_id_, language_code.str(), short_description.str()),
                td::make_unique<TdOnOkQueryCallback>(std::move(query)));
   return td::Status::OK();
 }
@@ -11225,6 +11315,8 @@ bool Client::need_skip_update_message(int64 chat_id, const object_ptr<td_api::me
       return true;
     case td_api::messageSuggestProfilePhoto::ID:
       return true;
+    case td_api::messageChatSetBackground::ID:
+      return true;
     default:
       break;
   }
@@ -11347,7 +11439,8 @@ bool Client::are_equal_inline_keyboard_buttons(const td_api::inlineKeyboardButto
     case td_api::inlineKeyboardButtonTypeSwitchInline::ID: {
       auto lhs_type = static_cast<const td_api::inlineKeyboardButtonTypeSwitchInline *>(lhs->type_.get());
       auto rhs_type = static_cast<const td_api::inlineKeyboardButtonTypeSwitchInline *>(rhs->type_.get());
-      return lhs_type->query_ == rhs_type->query_ && lhs_type->in_current_chat_ == rhs_type->in_current_chat_;
+      return lhs_type->query_ == rhs_type->query_ &&
+             to_string(lhs_type->target_chat_) == to_string(rhs_type->target_chat_);
     }
     case td_api::inlineKeyboardButtonTypeBuy::ID:
       return true;
