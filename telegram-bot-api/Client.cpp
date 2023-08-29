@@ -7392,10 +7392,10 @@ td::Result<td_api::object_ptr<td_api::chatPermissions>> Client::get_chat_permiss
     auto status = [&] {
       TRY_RESULT_ASSIGN(can_send_messages, object.get_optional_bool_field("can_send_messages"));
       TRY_RESULT_ASSIGN(can_send_polls, object.get_optional_bool_field("can_send_polls"));
-      TRY_RESULT_ASSIGN(can_send_stickers, object.get_json_object_bool_field(object, "can_send_stickers"));
-      TRY_RESULT_ASSIGN(can_send_animations, object.get_json_object_bool_field(object, "can_send_animations"));
-      TRY_RESULT_ASSIGN(can_send_games, object.get_json_object_bool_field(object, "can_send_games"));
-      TRY_RESULT_ASSIGN(can_use_inline_bots, object.get_json_object_bool_field(object, "can_use_inline_bots"));
+      TRY_RESULT_ASSIGN(can_send_stickers, object.get_optional_bool_field("can_send_stickers"));
+      TRY_RESULT_ASSIGN(can_send_animations, object.get_optional_bool_field("can_send_animations"));
+      TRY_RESULT_ASSIGN(can_send_games, object.get_optional_bool_field("can_send_games"));
+      TRY_RESULT_ASSIGN(can_use_inline_bots, object.get_optional_bool_field("can_use_inline_bots"));
       TRY_RESULT_ASSIGN(can_pin_messages, object.get_optional_bool_field("can_pin_messages"));
       if (object.has_field("can_manage_topics")) {
         TRY_RESULT_ASSIGN(can_manage_topics, object.get_optional_bool_field("can_manage_topics"));
