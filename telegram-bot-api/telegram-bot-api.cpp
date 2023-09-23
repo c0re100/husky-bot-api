@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
   auto start_time = td::Time::now();
   auto shared_data = std::make_shared<SharedData>();
   auto parameters = std::make_unique<ClientParameters>();
-  parameters->version_ = "6.8";
+  parameters->version_ = "6.9";
   parameters->shared_data_ = shared_data;
   parameters->start_time_ = start_time;
   auto net_query_stats = td::create_net_query_stats();
@@ -557,13 +557,15 @@ int main(int argc, char *argv[]) {
         next_cron_time = now;
       }
       next_cron_time += 1.0;
-      ServerCpuStat::update(now);
+      auto guard = sched.get_main_guard();
+      td::Scheduler::instance()->run_on_scheduler(SharedData::get_statistics_thread_id(),
+                                                  [](td::Unit) { ServerCpuStat::update(td::Time::now()); });
     }
 
     if (now >= start_time + 600) {
       auto guard = sched.get_main_guard();
       send_closure(watchdog_id, &Watchdog::kick);
-      next_watchdog_kick_time = now + WATCHDOG_TIMEOUT / 2;
+      next_watchdog_kick_time = now + WATCHDOG_TIMEOUT / 10;
     }
 
     if (!need_dump_statistics.test_and_set() || now > last_dump_time + 300.0) {

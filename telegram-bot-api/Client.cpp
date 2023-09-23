@@ -1784,6 +1784,10 @@ class Client::JsonWriteAccessAllowed final : public td::Jsonable {
     auto object = scope->enter_object();
     if (write_access_allowed_->web_app_ != nullptr) {
       object("web_app_name", write_access_allowed_->web_app_->short_name_);
+    } else if (write_access_allowed_->by_request_) {
+      object("from_request", td::JsonTrue());
+    } else {
+      object("from_attachment_menu", td::JsonTrue());
     }
   }
 
@@ -5142,7 +5146,7 @@ void Client::on_update(object_ptr<td_api::Object> result) {
     case td_api::updateMessageSendFailed::ID: {
       auto update = move_object_as<td_api::updateMessageSendFailed>(result);
       on_message_send_failed(update->message_->chat_id_, update->old_message_id_, update->message_->id_,
-                             td::Status::Error(update->error_code_, update->error_message_));
+                             std::move(update->error_));
       break;
     }
     case td_api::updateMessageContent::ID: {
@@ -6188,8 +6192,8 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
 
     return make_object<td_api::inputMessageInvoice>(
         make_object<td_api::invoice>(currency, std::move(prices), max_tip_amount, std::move(suggested_tip_amounts),
-                                     td::string(), false, need_name, need_phone_number, need_email_address,
-                                     need_shipping_address, send_phone_number_to_provider,
+                                     td::string(), td::string(), false, need_name, need_phone_number,
+                                     need_email_address, need_shipping_address, send_phone_number_to_provider,
                                      send_email_address_to_provider, is_flexible),
         title, description, photo_url, photo_size, photo_width, photo_height, payload, provider_token, provider_data,
         td::string(), nullptr);
@@ -6278,6 +6282,10 @@ td::Result<td::vector<td_api::object_ptr<td_api::InputInlineQueryResult>>> Clien
   }
   if (values.type() != td::JsonValue::Type::Array) {
     return td::Status::Error(400, "Expected an Array of inline query results");
+  }
+  constexpr std::size_t MAX_INLINE_QUERY_RESULT_COUNT = 50;
+  if (values.get_array().size() > MAX_INLINE_QUERY_RESULT_COUNT) {
+    return td::Status::Error(400, "Too many inline query results specified");
   }
 
   td::vector<object_ptr<td_api::InputInlineQueryResult>> inline_query_results;
@@ -6509,7 +6517,7 @@ td::Result<td_api::object_ptr<td_api::InputInlineQueryResult>> Client::get_inlin
 
     if (input_message_content == nullptr) {
       input_message_content = make_object<td_api::inputMessagePhoto>(nullptr, nullptr, td::vector<int32>(), 0, 0,
-                                                                     std::move(caption), 0, false);
+                                                                     std::move(caption), nullptr, false);
     }
     return make_object<td_api::inputInlineQueryResultPhoto>(id, title, description, thumbnail_url, photo_url,
                                                             photo_width, photo_height, std::move(reply_markup),
@@ -6576,7 +6584,7 @@ td::Result<td_api::object_ptr<td_api::InputInlineQueryResult>> Client::get_inlin
     if (input_message_content == nullptr) {
       input_message_content =
           make_object<td_api::inputMessageVideo>(nullptr, nullptr, td::vector<int32>(), video_duration, video_width,
-                                                 video_height, false, std::move(caption), 0, false);
+                                                 video_height, false, std::move(caption), nullptr, false);
     }
     return make_object<td_api::inputInlineQueryResultVideo>(id, title, description, thumbnail_url, video_url, mime_type,
                                                             video_width, video_height, video_duration,
@@ -6768,11 +6776,14 @@ td::Result<td_api::object_ptr<td_api::chatAdministratorRights>> Client::get_chat
   TRY_RESULT(can_manage_topics, object.get_optional_bool_field("can_manage_topics"));
   TRY_RESULT(can_promote_members, object.get_optional_bool_field("can_promote_members"));
   TRY_RESULT(can_manage_video_chats, object.get_optional_bool_field("can_manage_video_chats"));
+  TRY_RESULT(can_post_stories, object.get_optional_bool_field("can_post_stories"));
+  TRY_RESULT(can_edit_stories, object.get_optional_bool_field("can_edit_stories"));
+  TRY_RESULT(can_delete_stories, object.get_optional_bool_field("can_delete_stories"));
   TRY_RESULT(is_anonymous, object.get_optional_bool_field("is_anonymous"));
-  return make_object<td_api::chatAdministratorRights>(can_manage_chat, can_change_info, can_post_messages,
-                                                      can_edit_messages, can_delete_messages, can_invite_users,
-                                                      can_restrict_members, can_pin_messages, can_manage_topics,
-                                                      can_promote_members, can_manage_video_chats, is_anonymous);
+  return make_object<td_api::chatAdministratorRights>(
+      can_manage_chat, can_change_info, can_post_messages, can_edit_messages, can_delete_messages, can_invite_users,
+      can_restrict_members, can_pin_messages, can_manage_topics, can_promote_members, can_manage_video_chats,
+      can_post_stories, can_edit_stories, can_delete_stories, is_anonymous);
 }
 
 td::Result<td_api::object_ptr<td_api::chatAdministratorRights>> Client::get_chat_administrator_rights(
@@ -7283,6 +7294,10 @@ td::Result<td_api::object_ptr<td_api::textEntity>> Client::get_text_entity(td::J
 
 td::Result<td_api::object_ptr<td_api::formattedText>> Client::get_formatted_text(td::string text, td::string parse_mode,
                                                                                  td::JsonValue &&input_entities) {
+  if (text.size() > (1 << 15)) {
+    return td::Status::Error(400, "Text is too long");
+  }
+
   td::to_lower_inplace(parse_mode);
   if (!text.empty() && !parse_mode.empty() && parse_mode != "none") {
     object_ptr<td_api::TextParseMode> text_parse_mode;
@@ -7511,8 +7526,6 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
   TRY_RESULT(parse_mode, object.get_optional_string_field("parse_mode"));
   auto entities = object.extract_field("caption_entities");
   TRY_RESULT(caption, get_formatted_text(std::move(input_caption), std::move(parse_mode), std::move(entities)));
-  // TRY_RESULT(self_destruct_time, object.get_optional_int_field("self_destruct_time"));
-  int32 self_destruct_time = 0;
   TRY_RESULT(has_spoiler, object.get_optional_bool_field("has_spoiler"));
   TRY_RESULT(media, object.get_optional_string_field("media"));
 
@@ -7540,7 +7553,7 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
   TRY_RESULT(type, object.get_required_string_field("type"));
   if (type == "photo") {
     return make_object<td_api::inputMessagePhoto>(std::move(input_file), nullptr, td::vector<int32>(), 0, 0,
-                                                  std::move(caption), self_destruct_time, has_spoiler);
+                                                  std::move(caption), nullptr, has_spoiler);
   }
   if (type == "video") {
     TRY_RESULT(width, object.get_optional_int_field("width"));
@@ -7553,7 +7566,7 @@ td::Result<td_api::object_ptr<td_api::InputMessageContent>> Client::get_input_me
 
     return make_object<td_api::inputMessageVideo>(std::move(input_file), std::move(input_thumbnail),
                                                   td::vector<int32>(), duration, width, height, supports_streaming,
-                                                  std::move(caption), self_destruct_time, has_spoiler);
+                                                  std::move(caption), nullptr, has_spoiler);
   }
   if (for_album && type == "animation") {
     return td::Status::Error(PSLICE() << "type \"" << type << "\" can't be used in sendMediaGroup");
@@ -7700,7 +7713,7 @@ td::Result<td_api::object_ptr<td_api::inputMessageInvoice>> Client::get_input_me
 
   return make_object<td_api::inputMessageInvoice>(
       make_object<td_api::invoice>(currency.str(), std::move(prices), max_tip_amount, std::move(suggested_tip_amounts),
-                                   td::string(), false, need_name, need_phone_number, need_email_address,
+                                   td::string(), td::string(), false, need_name, need_phone_number, need_email_address,
                                    need_shipping_address, send_phone_number_to_provider, send_email_address_to_provider,
                                    is_flexible),
       title.str(), description.str(), photo_url.str(), photo_size, photo_width, photo_height, payload.str(),
@@ -7835,9 +7848,8 @@ void Client::on_message_send_succeeded(object_ptr<td_api::message> &&message, in
   }
 }
 
-void Client::on_message_send_failed(int64 chat_id, int64 old_message_id, int64 new_message_id, td::Status result) {
-  auto error = make_object<td_api::error>(result.code(), result.message().str());
-
+void Client::on_message_send_failed(int64 chat_id, int64 old_message_id, int64 new_message_id,
+                                    object_ptr<td_api::error> &&error) {
   auto query_id = extract_yet_unsent_message_query_id(chat_id, old_message_id);
   auto &query = *pending_send_message_queries_[query_id];
   if (query.is_multisend) {
@@ -8131,10 +8143,9 @@ td::Status Client::process_send_photo_query(PromisedQueryPtr &query) {
     return td::Status::Error(400, "There is no photo in the request");
   }
   TRY_RESULT(caption, get_caption(query.get()));
-  auto self_destruct_time = 0;
   auto has_spoiler = to_bool(query->arg("has_spoiler"));
   do_send_message(make_object<td_api::inputMessagePhoto>(std::move(photo), nullptr, td::vector<int32>(), 0, 0,
-                                                         std::move(caption), self_destruct_time, has_spoiler),
+                                                         std::move(caption), nullptr, has_spoiler),
                   std::move(query));
   return td::Status::OK();
 }
@@ -8161,11 +8172,10 @@ td::Status Client::process_send_video_query(PromisedQueryPtr &query) {
   int32 height = get_integer_arg(query.get(), "height", 0, 0, MAX_LENGTH);
   bool supports_streaming = to_bool(query->arg("supports_streaming"));
   TRY_RESULT(caption, get_caption(query.get()));
-  auto self_destruct_time = 0;
   auto has_spoiler = to_bool(query->arg("has_spoiler"));
   do_send_message(make_object<td_api::inputMessageVideo>(std::move(video), std::move(thumbnail), td::vector<int32>(),
                                                          duration, width, height, supports_streaming,
-                                                         std::move(caption), self_destruct_time, has_spoiler),
+                                                         std::move(caption), nullptr, has_spoiler),
                   std::move(query));
   return td::Status::OK();
 }
@@ -9256,13 +9266,16 @@ td::Status Client::process_promote_chat_member_query(PromisedQueryPtr &query) {
   auto can_promote_members = to_bool(query->arg("can_promote_members"));
   auto can_manage_video_chats =
       to_bool(query->arg("can_manage_voice_chats")) || to_bool(query->arg("can_manage_video_chats"));
+  auto can_post_stories = to_bool(query->arg("can_post_stories"));
+  auto can_edit_stories = to_bool(query->arg("can_edit_stories"));
+  auto can_delete_stories = to_bool(query->arg("can_delete_stories"));
   auto is_anonymous = to_bool(query->arg("is_anonymous"));
   auto status = make_object<td_api::chatMemberStatusAdministrator>(
       td::string(), true,
-      make_object<td_api::chatAdministratorRights>(can_manage_chat, can_change_info, can_post_messages,
-                                                   can_edit_messages, can_delete_messages, can_invite_users,
-                                                   can_restrict_members, can_pin_messages, can_manage_topics,
-                                                   can_promote_members, can_manage_video_chats, is_anonymous));
+      make_object<td_api::chatAdministratorRights>(
+          can_manage_chat, can_change_info, can_post_messages, can_edit_messages, can_delete_messages, can_invite_users,
+          can_restrict_members, can_pin_messages, can_manage_topics, can_promote_members, can_manage_video_chats,
+          can_post_stories, can_edit_stories, can_delete_stories, is_anonymous));
   check_chat(chat_id, AccessRights::Write, std::move(query),
              [this, user_id, status = std::move(status)](int64 chat_id, PromisedQueryPtr query) mutable {
                auto chat_info = get_chat(chat_id);
@@ -10181,7 +10194,7 @@ void Client::do_send_message(object_ptr<td_api::InputMessageContent> input_messa
       if (file_size > 100000) {
         auto &last_send_message_time = last_send_message_time_[file_size];
         auto now = td::Time::now();
-        auto min_delay = td::clamp(static_cast<double>(file_size) * 1e-7, 0.1, 0.5);
+        auto min_delay = td::clamp(static_cast<double>(file_size) * 1e-7, 0.2, 0.9);
         auto max_bucket_volume = 1.0;
         if (last_send_message_time > now + 5.0) {
           return fail_query_flood_limit_exceeded(std::move(query));
@@ -10837,6 +10850,11 @@ void Client::json_store_administrator_rights(td::JsonObjectScope &object, const 
   }
   object("can_promote_members", td::JsonBool(rights->can_promote_members_));
   object("can_manage_video_chats", td::JsonBool(rights->can_manage_video_chats_));
+  if (chat_type == ChatType::Channel) {
+    object("can_post_stories", td::JsonBool(rights->can_post_stories_));
+    object("can_edit_stories", td::JsonBool(rights->can_edit_stories_));
+    object("can_delete_stories", td::JsonBool(rights->can_delete_stories_));
+  }
   object("is_anonymous", td::JsonBool(rights->is_anonymous_));
 }
 
@@ -11267,9 +11285,14 @@ bool Client::need_skip_update_message(int64 chat_id, const object_ptr<td_api::me
       // don't send messages received before join or getting authorization
       return true;
     }
+
+    if (!supergroup_info->is_supergroup && message->content_->get_id() == td_api::messageSupergroupChatCreate::ID) {
+      // don't send message about channel creation, even the bot was added at exactly the same time
+      return true;
+    }
   }
 
-  if (message->self_destruct_time_ > 0) {
+  if (message->self_destruct_type_ != nullptr) {
     return true;
   }
 
@@ -11654,17 +11677,17 @@ td::unique_ptr<Client::MessageInfo> Client::delete_message(int64 chat_id, int64 
       auto chat_info = get_chat(chat_id);
       CHECK(chat_info != nullptr);
 
-      td::Status error =
-          td::Status::Error(500, "Internal Server Error: sent message was immediately deleted and can't be returned");
+      auto error = make_object<td_api::error>(
+          500, "Internal Server Error: sent message was immediately deleted and can't be returned");
       if (chat_info->type == ChatInfo::Type::Supergroup) {
         auto supergroup_info = get_supergroup_info(chat_info->supergroup_id);
         CHECK(supergroup_info != nullptr);
         if (supergroup_info->status->get_id() == td_api::chatMemberStatusBanned::ID ||
             supergroup_info->status->get_id() == td_api::chatMemberStatusLeft::ID) {
           if (supergroup_info->is_supergroup) {
-            error = td::Status::Error(403, "Forbidden: bot is not a member of the supergroup chat");
+            error = make_object<td_api::error>(403, "Forbidden: bot is not a member of the supergroup chat");
           } else {
-            error = td::Status::Error(403, "Forbidden: bot is not a member of the channel chat");
+            error = make_object<td_api::error>(403, "Forbidden: bot is not a member of the channel chat");
           }
         }
       }
