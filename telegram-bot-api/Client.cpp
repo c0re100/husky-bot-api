@@ -391,7 +391,7 @@ class Client::JsonUser final : public td::Jsonable {
       : user_id_(user_id), client_(client), full_bot_info_(full_bot_info) {
   }
   void store(td::JsonValueScope *scope) const {
-    auto chat_info = client_->get_chat(user_id_);
+//    auto chat_info = client_->get_chat(user_id_);
     auto object = scope->enter_object();
     auto user_info = client_->get_user_info(user_id_);
     object("id", user_id_);
@@ -2856,7 +2856,7 @@ class Client::JsonDeletedMessages final : public td::Jsonable {
   void store(td::JsonValueScope *scope) const {
     auto object = scope->enter_object();
     object("message_ids", td::json_array(message_ids_, [](int64 message_id) { return as_client_message_id(message_id); }));
-    object("chat", JsonChat(chat_id_, false, client_));
+    object("chat", JsonChat(chat_id_, client_, false));
     object("date", 0);
   }
 
@@ -3313,8 +3313,8 @@ class Client::JsonChatMembers final : public td::Jsonable {
 //      if (member->member_id_->get_id() != td_api::messageSenderUser::ID) {
 //       continue;
 //      }
-      auto user_id = static_cast<const td_api::messageSenderUser *>(member->member_id_.get())->user_id_;
-      auto user_info = client_->get_user_info(user_id);
+//      auto user_id = static_cast<const td_api::messageSenderUser *>(member->member_id_.get())->user_id_;
+//      auto user_info = client_->get_user_info(user_id);
 //      bool is_member_bot = user_info != nullptr && user_info->type == UserInfo::Type::Bot;
 //      if (is_member_bot && user_id != client_->my_id_) {
 //        continue;
@@ -5806,7 +5806,7 @@ void Client::on_update_file(object_ptr<td_api::file> file) {
 //      send_request(make_object<td_api::cancelDownloadFile>(file_id, false),
 //                   std::make_unique<TdOnCancelDownloadFileCallback>());
 //    }
-//    return on_file_download(file_id, Status::Error(400, "Bad Request: file is too big"));
+//    return on_file_download(file_id, td::Status::Error(400, "Bad Request: file is too big"));
 //  }
   if (file->local_->is_downloading_completed_) {
     return on_file_download(file_id, std::move(file));
@@ -9780,46 +9780,12 @@ td::Status Client::process_edit_message_reply_markup_query(PromisedQueryPtr &que
 td::Status Client::process_delete_message_query(PromisedQueryPtr &query) {
   auto chat_id = query->arg("chat_id");
   auto message_id = get_message_id(query.get());
-  auto is_messages_array = query->has_arg("message_ids");
 
   if (chat_id.empty()) {
     return td::Status::Error(400, "Chat identifier is not specified");
   }
 
-  if (is_messages_array) {
-    auto message_ids = json_decode(query->arg("message_ids"));
-
-    if (message_ids.is_error()) {
-      return td::Status::Error(400, "Can't parse message_ids to JSON array");
-    }
-
-    auto value = message_ids.move_as_ok();
-    if (value.type() != td::JsonValue::Type::Array) {
-      return td::Status::Error(400, "Field \"message_ids\" must be an Array");
-    }
-
-    if (value.get_array().empty()) {
-      return td::Status::Error(400, "Array should not be empty");
-    }
-
-    auto chat_id_int = td::to_integer<int64>(chat_id);
-    td::vector<int64> messages_array = {};
-
-    for (auto &msg_id : value.get_array()) {
-      if (msg_id.type() == td::JsonValue::Type::Number) {
-        auto id = as_tdlib_message_id(td::to_integer<int32>(msg_id.get_number()));
-        if (id > 1048576) {
-          messages_array.push_back(id);
-        }
-      } else {
-        return td::Status::Error(400, "Array must be numeric");
-      }
-    }
-
-    send_request(make_object<td_api::deleteMessages>(chat_id_int, std::move(messages_array), true),
-                 td::make_unique<TdOnOkQueryCallback>(std::move(query)));
-    return td::Status::OK();
-  } else if (message_id == 0) {
+  if (message_id == 0) {
     return td::Status::Error(400, "Message identifier is not specified");
   }
 
