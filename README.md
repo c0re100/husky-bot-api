@@ -16,7 +16,7 @@ A: *Husky Bot API have few Official API changes or Implement new API in the futu
 
 Q: **Where can I find API documentation?**
 
-A: *[API documentation](API.md) - Update: 20/03/2023*
+A: *[API documentation](API.md) - Update: 30/12/2023*
 
 ---
 

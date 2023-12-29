@@ -21,9 +21,8 @@ If you want to use this API without error, you need to modify your Bot API libra
    4. [File](#file)
    5. [Update Type](#update-type)
         1. [deleted_messages](#deleted_messages)
-2. [Delete messages](#delete-messages)
-3. [Get message](#get-message)
-4. [Get chat members](#get-chat-members)
+2. [Get message](#get-message)
+3. [Get chat members](#get-chat-members)
 
 ---
 
@@ -112,31 +111,6 @@ Update Type now has 1 new type.
 | `message_ids` | Array of Integer | Messages ID |
 
 ---
-
-## Delete messages ##
-
-Name: `deleteMessage`
-
-Allow bot to delete single/multiple message.
-
-| Parameter     | Type              | Required? | Description                                                                                              |
-| ------------- | ----------------- | --------- | -------------------------------------------------------------------------------------------------------- |
-| `chat_id`     | Integer or String | Yes       | Unique identifier for the target chat or username of the target channel (in the format @channelusername) |
-| `message_id`  | Integer           | Yes/No*   | Identifier of the message to delete                                                                      |
-| `message_ids` | Array of Integer  | Optional  | Identifiers of the message to delete                                                                     |
-
-Returns: 
-
-| Code | Scenarios                                                                                              |
-| ---- | ------------------------------------------------------------------------------------------------------ |
-| 400  | 1. The provided identifier is invalid                                                                  |
-|      | 2. You haven't joined this channel/supergroup                                                          |
-| 403  | You can't delete one of the messages you tried to delete, most likely because it is a service message. |
-| 200  | All other scenarios                                                                                    |
-
-If field `message_ids` filled, API will return `true` as always, even the message can't delete.
-
-**If you want to delete multiple messages, leave `message_id` empty and fill the `message_ids` field.*
 
 ## Get message ##
 
