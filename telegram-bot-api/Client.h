@@ -121,6 +121,8 @@ class Client final : public WebhookActor::Callback {
   class JsonVideo;
   class JsonVideoNote;
   class JsonVoiceNote;
+  class JsonPaidMedia;
+  class JsonPaidMediaInfo;
   class JsonContact;
   class JsonDice;
   class JsonGame;
@@ -569,6 +571,17 @@ class Client final : public WebhookActor::Callback {
   td::Result<td::vector<object_ptr<td_api::InputMessageContent>>> get_input_message_contents(
       const Query *query, td::JsonValue &&value) const;
 
+  td::Result<object_ptr<td_api::inputPaidMedia>> get_input_paid_media(const Query *query,
+                                                                      td::JsonValue &&input_media) const;
+
+  td::Result<object_ptr<td_api::inputPaidMedia>> get_input_paid_media(const Query *query, td::Slice field_name) const;
+
+  td::Result<td::vector<object_ptr<td_api::inputPaidMedia>>> get_paid_media(const Query *query,
+                                                                            td::Slice field_name) const;
+
+  td::Result<td::vector<object_ptr<td_api::inputPaidMedia>>> get_paid_media(const Query *query,
+                                                                            td::JsonValue &&value) const;
+
   td::Result<object_ptr<td_api::inputMessageInvoice>> get_input_message_invoice(const Query *query) const;
 
   static object_ptr<td_api::messageSendOptions> get_message_send_options(bool disable_notification,
@@ -636,6 +649,7 @@ class Client final : public WebhookActor::Callback {
   td::Status process_send_video_query(PromisedQueryPtr &query);
   td::Status process_send_video_note_query(PromisedQueryPtr &query);
   td::Status process_send_voice_query(PromisedQueryPtr &query);
+  td::Status process_send_paid_media_query(PromisedQueryPtr &query);
   td::Status process_send_game_query(PromisedQueryPtr &query);
   td::Status process_send_invoice_query(PromisedQueryPtr &query);
   td::Status process_send_location_query(PromisedQueryPtr &query);
@@ -880,6 +894,7 @@ class Client final : public WebhookActor::Callback {
     bool join_by_request = false;
     bool has_hidden_members = false;
     bool has_aggressive_anti_spam_enabled = false;
+    bool has_paid_media_allowed = false;
   };
   static void add_supergroup(SupergroupInfo *supergroup_info, object_ptr<td_api::supergroup> &&supergroup);
   SupergroupInfo *add_supergroup_info(int64 supergroup_id);
