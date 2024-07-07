@@ -13263,7 +13263,7 @@ void Client::json_store_permissions(td::JsonObjectScope &object, const td_api::c
   object("can_send_animations", td::JsonBool(permissions->can_send_animations_));
   object("can_send_games", td::JsonBool(permissions->can_send_games_));
   object("can_use_inline_bots", td::JsonBool(permissions->can_use_inline_bots_));
-  object("can_add_web_page_previews", td::JsonBool(permissions->can_add_web_page_previews_));
+  object("can_add_web_page_previews", td::JsonBool(permissions->can_add_link_previews_));
   object("can_change_info", td::JsonBool(permissions->can_change_info_));
   object("can_invite_users", td::JsonBool(permissions->can_invite_users_));
   object("can_pin_messages", td::JsonBool(permissions->can_pin_messages_));
