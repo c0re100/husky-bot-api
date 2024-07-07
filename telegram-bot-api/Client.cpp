@@ -1024,7 +1024,7 @@ class Client::JsonChat final : public td::Jsonable {
             permissions->can_send_documents_ && permissions->can_send_photos_ && permissions->can_send_videos_ &&
             permissions->can_send_video_notes_ && permissions->can_send_voice_notes_ && permissions->can_send_polls_ &&
             permissions->can_send_stickers_ && permissions->can_send_animations_ && permissions->can_send_games_ && 
-            permissions->can_use_inline_bots_ && permissions->can_add_web_page_previews_ &&
+            permissions->can_use_inline_bots_ && permissions->can_add_link_previews_ &&
             permissions->can_change_info_ && permissions->can_invite_users_ && permissions->can_pin_messages_;
         object("all_members_are_administrators", td::JsonBool(everyone_is_administrator));
         photo = group_info->photo.get();
@@ -2087,13 +2087,37 @@ class Client::JsonSuccessfulPaymentBot final : public td::Jsonable {
     if (successful_payment_->order_info_ != nullptr) {
       object("order_info", JsonOrderInfo(successful_payment_->order_info_.get()));
     }
-
     object("telegram_payment_charge_id", successful_payment_->telegram_payment_charge_id_);
     object("provider_payment_charge_id", successful_payment_->provider_payment_charge_id_);
   }
 
  private:
   const td_api::messagePaymentSuccessfulBot *successful_payment_;
+};
+
+class Client::JsonRefundedPayment final : public td::Jsonable {
+ public:
+  explicit JsonRefundedPayment(const td_api::messagePaymentRefunded *refunded_payment)
+      : refunded_payment_(refunded_payment) {
+  }
+  void store(td::JsonValueScope *scope) const {
+    auto object = scope->enter_object();
+    object("currency", refunded_payment_->currency_);
+    object("total_amount", refunded_payment_->total_amount_);
+    if (!td::check_utf8(refunded_payment_->invoice_payload_)) {
+      LOG(WARNING) << "Receive non-UTF-8 invoice payload";
+      object("invoice_payload", td::JsonRawString(refunded_payment_->invoice_payload_));
+    } else {
+      object("invoice_payload", refunded_payment_->invoice_payload_);
+    }
+    object("telegram_payment_charge_id", refunded_payment_->telegram_payment_charge_id_);
+    if (!refunded_payment_->provider_payment_charge_id_.empty()) {
+      object("provider_payment_charge_id", refunded_payment_->provider_payment_charge_id_);
+    }
+  }
+
+ private:
+  const td_api::messagePaymentRefunded *refunded_payment_;
 };
 
 class Client::JsonEncryptedPassportElement final : public td::Jsonable {
@@ -3273,6 +3297,11 @@ void Client::JsonMessage::store(td::JsonValueScope *scope) const {
     case td_api::messageChatBoost::ID: {
       auto content = static_cast<const td_api::messageChatBoost *>(message_->content.get());
       object("boost_added", JsonChatBoostAdded(content));
+      break;
+    }
+    case td_api::messagePaymentRefunded::ID: {
+      auto content = static_cast<const td_api::messagePaymentRefunded *>(message_->content.get());
+      object("refunded_payment", JsonRefundedPayment(content));
       break;
     }
     default:
@@ -13780,6 +13809,7 @@ bool Client::need_skip_update_message(int64 chat_id, const object_ptr<td_api::me
       case td_api::messagePremiumGiveaway::ID:
       case td_api::messagePremiumGiveawayWinners::ID:
       case td_api::messagePremiumGiveawayCompleted::ID:
+      case td_api::messagePaymentRefunded::ID:
         // don't skip
         break;
       default:
