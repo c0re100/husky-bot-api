@@ -684,7 +684,9 @@ class Client final : public WebhookActor::Callback {
   td::Status process_answer_pre_checkout_query_query(PromisedQueryPtr &query);
   td::Status process_export_chat_invite_link_query(PromisedQueryPtr &query);
   td::Status process_create_chat_invite_link_query(PromisedQueryPtr &query);
+  td::Status process_create_chat_subscription_invite_link_query(PromisedQueryPtr &query);
   td::Status process_edit_chat_invite_link_query(PromisedQueryPtr &query);
+  td::Status process_edit_chat_subscription_invite_link_query(PromisedQueryPtr &query);
   td::Status process_revoke_chat_invite_link_query(PromisedQueryPtr &query);
   td::Status process_get_business_connection_query(PromisedQueryPtr &query);
   td::Status process_get_chat_query(PromisedQueryPtr &query);
@@ -846,9 +848,10 @@ class Client final : public WebhookActor::Callback {
     bool can_join_groups = false;
     bool can_read_all_group_messages = false;
     bool can_connect_to_business = false;
-    bool is_inline_bot = false;
+    bool has_main_web_app = false;
     bool has_private_forwards = false;
     bool has_restricted_voice_and_video_messages = false;
+    bool is_inline_bot = false;
     bool is_premium = false;
     bool added_to_attachment_menu = false;
   };

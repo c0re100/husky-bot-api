@@ -258,7 +258,9 @@ bool Client::init_methods() {
   methods_.emplace("answerprecheckoutquery", &Client::process_answer_pre_checkout_query_query);
   methods_.emplace("exportchatinvitelink", &Client::process_export_chat_invite_link_query);
   methods_.emplace("createchatinvitelink", &Client::process_create_chat_invite_link_query);
+  methods_.emplace("createchatsubscriptioninvitelink", &Client::process_create_chat_subscription_invite_link_query);
   methods_.emplace("editchatinvitelink", &Client::process_edit_chat_invite_link_query);
+  methods_.emplace("editchatsubscriptioninvitelink", &Client::process_edit_chat_subscription_invite_link_query);
   methods_.emplace("revokechatinvitelink", &Client::process_revoke_chat_invite_link_query);
   methods_.emplace("getbusinessconnection", &Client::process_get_business_connection_query);
   methods_.emplace("getchat", &Client::process_get_chat_query);
@@ -430,6 +432,7 @@ class Client::JsonUser final : public td::Jsonable {
       object("can_read_all_group_messages", td::JsonBool(user_info->can_read_all_group_messages));
       object("supports_inline_queries", td::JsonBool(user_info->is_inline_bot));
       object("can_connect_to_business", td::JsonBool(user_info->can_connect_to_business));
+      object("has_main_web_app", td::JsonBool(user_info->has_main_web_app));
     }
   }
 
@@ -718,6 +721,9 @@ class Client::JsonReactionType final : public td::Jsonable {
         object("custom_emoji_id",
                td::to_string(static_cast<const td_api::reactionTypeCustomEmoji *>(reaction_type_)->custom_emoji_id_));
         break;
+      case td_api::reactionTypePaid::ID:
+        object("type", "paid");
+        break;
       default:
         UNREACHABLE();
     }
@@ -892,6 +898,10 @@ class Client::JsonChatInviteLink final : public td::Jsonable {
     }
     if (chat_invite_link_->pending_join_request_count_ != 0) {
       object("pending_join_request_count", chat_invite_link_->pending_join_request_count_);
+    }
+    if (chat_invite_link_->subscription_pricing_ != nullptr) {
+      object("subscription_period", chat_invite_link_->subscription_pricing_->period_);
+      object("subscription_price", chat_invite_link_->subscription_pricing_->star_count_);
     }
     object("creates_join_request", td::JsonBool(chat_invite_link_->creates_join_request_));
     object("is_primary", td::JsonBool(chat_invite_link_->is_primary_));
@@ -3304,6 +3314,8 @@ void Client::JsonMessage::store(td::JsonValueScope *scope) const {
       object("refunded_payment", JsonRefundedPayment(content));
       break;
     }
+    case td_api::messageGiftedStars::ID:
+      break;
     default:
       UNREACHABLE();
   }
@@ -3750,8 +3762,13 @@ class Client::JsonChatMember final : public td::Jsonable {
         }
         break;
       }
-      case td_api::chatMemberStatusMember::ID:
+      case td_api::chatMemberStatusMember::ID: {
+        auto member = static_cast<const td_api::chatMemberStatusMember *>(member_->status_.get());
+        if (member->member_until_date_ > 0) {
+          object("until_date", member->member_until_date_);
+        }
         break;
+      }
       case td_api::chatMemberStatusRestricted::ID:
         if (chat_type_ == Client::ChatType::Supergroup) {
           auto restricted = static_cast<const td_api::chatMemberStatusRestricted *>(member_->status_.get());
@@ -4131,14 +4148,31 @@ class Client::JsonStarTransactionPartner final : public td::Jsonable {
       case td_api::starTransactionPartnerBot::ID: {
         auto source_user = static_cast<const td_api::starTransactionPartnerBot *>(source_);
         object("type", "user");
-        object("user", JsonUser(source_user->bot_user_id_, client_));
-        if (!source_user->invoice_payload_.empty()) {
-          if (!td::check_utf8(source_user->invoice_payload_)) {
-            LOG(WARNING) << "Receive non-UTF-8 invoice payload";
-            object("invoice_payload", td::JsonRawString(source_user->invoice_payload_));
-          } else {
-            object("invoice_payload", source_user->invoice_payload_);
+        object("user", JsonUser(source_user->user_id_, client_));
+        CHECK(source_user->purpose_ != nullptr);
+        switch (source_user->purpose_->get_id()) {
+          case td_api::botTransactionPurposeInvoicePayment::ID: {
+            auto purpose =
+                static_cast<const td_api::botTransactionPurposeInvoicePayment *>(source_user->purpose_.get());
+            if (!purpose->invoice_payload_.empty()) {
+              if (!td::check_utf8(purpose->invoice_payload_)) {
+                LOG(WARNING) << "Receive non-UTF-8 invoice payload";
+                object("invoice_payload", td::JsonRawString(purpose->invoice_payload_));
+              } else {
+                object("invoice_payload", purpose->invoice_payload_);
+              }
+            }
+            break;
           }
+          case td_api::botTransactionPurposePaidMedia::ID: {
+            auto purpose = static_cast<const td_api::botTransactionPurposePaidMedia *>(source_user->purpose_.get());
+            object("paid_media", td::json_array(purpose->media_, [client = client_](auto &media) {
+                     return JsonPaidMedia(media.get(), client);
+                   }));
+            break;
+          }
+          default:
+            UNREACHABLE();
         }
         break;
       }
@@ -4148,6 +4182,8 @@ class Client::JsonStarTransactionPartner final : public td::Jsonable {
       case td_api::starTransactionPartnerTelegram::ID:
       case td_api::starTransactionPartnerAppStore::ID:
       case td_api::starTransactionPartnerGooglePlay::ID:
+      case td_api::starTransactionPartnerUser::ID:
+      case td_api::starTransactionPartnerBusiness::ID:
       case td_api::starTransactionPartnerChannel::ID:
         LOG(ERROR) << "Receive " << to_string(*source_);
         object("type", "other");
@@ -11039,8 +11075,8 @@ td::Status Client::process_create_invoice_link_query(PromisedQueryPtr &query) {
 td::Status Client::process_get_star_transactions_query(PromisedQueryPtr &query) {
   auto offset = get_integer_arg(query.get(), "offset", 0, 0);
   auto limit = get_integer_arg(query.get(), "limit", 100, 1, 100);
-  send_request(make_object<td_api::getStarTransactions>(make_object<td_api::messageSenderUser>(my_id_), nullptr,
-                                                        td::to_string(offset), limit),
+  send_request(make_object<td_api::getStarTransactions>(make_object<td_api::messageSenderUser>(my_id_), td::string(),
+                                                        nullptr, td::to_string(offset), limit),
                td::make_unique<TdOnGetStarTransactionsQueryCallback>(this, std::move(query)));
   return td::Status::OK();
 }
@@ -11232,6 +11268,22 @@ td::Status Client::process_create_chat_invite_link_query(PromisedQueryPtr &query
   return td::Status::OK();
 }
 
+td::Status Client::process_create_chat_subscription_invite_link_query(PromisedQueryPtr &query) {
+  auto chat_id = query->arg("chat_id");
+  auto name = query->arg("name");
+  auto subscription_period = get_integer_arg(query.get(), "subscription_period", 0, 0, 1000000000);
+  auto subscription_price = get_integer_arg(query.get(), "subscription_price", 0, 0, 1000000);
+
+  check_chat(chat_id, AccessRights::Write, std::move(query),
+             [this, name = name.str(), subscription_period, subscription_price](int64 chat_id, PromisedQueryPtr query) {
+               send_request(make_object<td_api::createChatSubscriptionInviteLink>(
+                                chat_id, name,
+                                make_object<td_api::starSubscriptionPricing>(subscription_period, subscription_price)),
+                            td::make_unique<TdOnGetChatInviteLinkCallback>(this, std::move(query)));
+             });
+  return td::Status::OK();
+}
+
 td::Status Client::process_edit_chat_invite_link_query(PromisedQueryPtr &query) {
   auto chat_id = query->arg("chat_id");
   auto invite_link = query->arg("invite_link");
@@ -11245,6 +11297,19 @@ td::Status Client::process_edit_chat_invite_link_query(PromisedQueryPtr &query) 
               creates_join_request](int64 chat_id, PromisedQueryPtr query) {
                send_request(make_object<td_api::editChatInviteLink>(chat_id, invite_link, name, expire_date,
                                                                     member_limit, creates_join_request),
+                            td::make_unique<TdOnGetChatInviteLinkCallback>(this, std::move(query)));
+             });
+  return td::Status::OK();
+}
+
+td::Status Client::process_edit_chat_subscription_invite_link_query(PromisedQueryPtr &query) {
+  auto chat_id = query->arg("chat_id");
+  auto invite_link = query->arg("invite_link");
+  auto name = query->arg("name");
+
+  check_chat(chat_id, AccessRights::Write, std::move(query),
+             [this, invite_link = invite_link.str(), name = name.str()](int64 chat_id, PromisedQueryPtr query) {
+               send_request(make_object<td_api::editChatSubscriptionInviteLink>(chat_id, invite_link, name),
                             td::make_unique<TdOnGetChatInviteLinkCallback>(this, std::move(query)));
              });
   return td::Status::OK();
@@ -11364,10 +11429,21 @@ td::Status Client::process_set_chat_description_query(PromisedQueryPtr &query) {
 }
 
 td::Status Client::process_pin_chat_message_query(PromisedQueryPtr &query) {
+  auto business_connection_id = query->arg("business_connection_id");
   auto chat_id = query->arg("chat_id");
   auto message_id = get_message_id(query.get());
   auto disable_notification = to_bool(query->arg("disable_notification"));
 
+  if (!business_connection_id.empty()) {
+    check_business_connection_chat_id(
+        business_connection_id.str(), chat_id.str(), std::move(query),
+        [this, message_id](const BusinessConnection *business_connection, int64 chat_id, PromisedQueryPtr query) {
+          send_request(
+              make_object<td_api::setBusinessMessageIsPinned>(business_connection->id_, chat_id, message_id, true),
+              td::make_unique<TdOnOkQueryCallback>(std::move(query)));
+        });
+    return td::Status::OK();
+  }
   check_message(chat_id, message_id, false, AccessRights::Write, "message to pin", std::move(query),
                 [this, disable_notification](int64 chat_id, int64 message_id, PromisedQueryPtr query) {
                   send_request(make_object<td_api::pinChatMessage>(chat_id, message_id, disable_notification, false),
@@ -11377,8 +11453,20 @@ td::Status Client::process_pin_chat_message_query(PromisedQueryPtr &query) {
 }
 
 td::Status Client::process_unpin_chat_message_query(PromisedQueryPtr &query) {
+  auto business_connection_id = query->arg("business_connection_id");
   auto chat_id = query->arg("chat_id");
   auto message_id = get_message_id(query.get());
+
+  if (!business_connection_id.empty()) {
+    check_business_connection_chat_id(
+        business_connection_id.str(), chat_id.str(), std::move(query),
+        [this, message_id](const BusinessConnection *business_connection, int64 chat_id, PromisedQueryPtr query) {
+          send_request(
+              make_object<td_api::setBusinessMessageIsPinned>(business_connection->id_, chat_id, message_id, false),
+              td::make_unique<TdOnOkQueryCallback>(std::move(query)));
+        });
+    return td::Status::OK();
+  }
 
   if (message_id == 0) {
     check_chat(chat_id, AccessRights::Write, std::move(query), [this](int64 chat_id, PromisedQueryPtr query) {
@@ -12959,6 +13047,7 @@ void Client::add_user(UserInfo *user_info, object_ptr<td_api::user> &&user) {
       user_info->can_read_all_group_messages = bot->can_read_all_group_messages_;
       user_info->is_inline_bot = bot->is_inline_;
       user_info->can_connect_to_business = bot->can_connect_to_business_;
+      user_info->has_main_web_app = bot->has_main_web_app_;
       break;
     }
     case td_api::userTypeDeleted::ID:
@@ -13917,6 +14006,8 @@ bool Client::need_skip_update_message(int64 chat_id, const object_ptr<td_api::me
     case td_api::messageSuggestProfilePhoto::ID:
       return true;
     case td_api::messagePremiumGiftCode::ID:
+      return true;
+    case td_api::messageGiftedStars::ID:
       return true;
     default:
       break;
