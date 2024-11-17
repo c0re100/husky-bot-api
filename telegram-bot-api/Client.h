@@ -135,6 +135,7 @@ class Client final : public WebhookActor::Callback {
   class JsonEntity;
   class JsonVectorEntities;
   class JsonWebAppInfo;
+  class JsonCopyTextButton;
   class JsonInlineKeyboardButton;
   class JsonInlineKeyboard;
   class JsonReplyMarkup;
@@ -149,6 +150,7 @@ class Client final : public WebhookActor::Callback {
   class JsonInlineCallbackQuery;
   class JsonShippingQuery;
   class JsonPreCheckoutQuery;
+  class JsonPaidMediaPurchased;
   class JsonBotCommand;
   class JsonBotMenuButton;
   class JsonBotName;
@@ -169,6 +171,8 @@ class Client final : public WebhookActor::Callback {
   class JsonForumTopicEdited;
   class JsonForumTopicInfo;
   class JsonGameHighScore;
+  class JsonGift;
+  class JsonGifts;
   class JsonMessageReactionUpdated;
   class JsonMessageReactionCountUpdated;
   class JsonBusinessConnection;
@@ -195,6 +199,7 @@ class Client final : public WebhookActor::Callback {
   class JsonSharedUser;
   class JsonUsersShared;
   class JsonChatShared;
+  class JsonGiveawayCreated;
   class JsonGiveaway;
   class JsonGiveawayWinners;
   class JsonGiveawayCompleted;
@@ -207,6 +212,7 @@ class Client final : public WebhookActor::Callback {
   class JsonWebhookInfo;
   class JsonStickerSet;
   class JsonSentWebAppMessage;
+  class JsonPreparedInlineMessageId;
   class JsonCustomJson;
 
   class TdOnOkCallback;
@@ -245,12 +251,14 @@ class Client final : public WebhookActor::Callback {
   class TdOnGetSupergroupMembersCallback;
   class TdOnGetSupergroupMemberCountCallback;
   class TdOnGetUserChatBoostsCallback;
+  class TdOnGetGiftsCallback;
   class TdOnCreateInvoiceLinkCallback;
   class TdOnGetStarTransactionsQueryCallback;
   class TdOnReplacePrimaryChatInviteLinkCallback;
   class TdOnGetChatInviteLinkCallback;
   class TdOnGetGameHighScoresCallback;
   class TdOnAnswerWebAppQueryCallback;
+  class TdOnSavePreparedInlineMessageCallback;
   class TdOnReturnFileCallback;
   class TdOnReturnStickerSetCallback;
   class TdOnGetStickerSetPromiseCallback;
@@ -267,9 +275,11 @@ class Client final : public WebhookActor::Callback {
 
   void on_get_sticker_set(int64 set_id, int64 new_callback_query_user_id, int64 new_message_chat_id,
                           const td::string &new_message_business_connection_id,
-                          int64 new_business_callback_query_user_id, object_ptr<td_api::stickerSet> sticker_set);
+                          int64 new_business_callback_query_user_id, object_ptr<td_api::text> sticker_set_name);
 
   void on_get_sticker_set_name(int64 set_id, const td::string &name);
+
+  void on_get_sticker_set_name(int64 set_id, object_ptr<td_api::Object> sticker_set_name);
 
   class TdQueryCallback {
    public:
@@ -342,7 +352,8 @@ class Client final : public WebhookActor::Callback {
                          OnSuccess on_success) const;
 
   template <class OnSuccess>
-  void check_chat(td::Slice chat_id_str, AccessRights access_rights, PromisedQueryPtr query, OnSuccess on_success);
+  void check_chat(td::Slice chat_id_str, AccessRights access_rights, PromisedQueryPtr query, OnSuccess on_success,
+                  bool allow_unknown_user = false);
 
   template <class OnSuccess>
   void check_chat_no_fail(td::Slice chat_id_str, PromisedQueryPtr query, OnSuccess on_success);
@@ -373,7 +384,7 @@ class Client final : public WebhookActor::Callback {
 
   template <class OnSuccess>
   void check_reply_parameters(td::Slice chat_id_str, InputReplyParameters &&reply_parameters, int64 message_thread_id,
-                              PromisedQueryPtr query, OnSuccess on_success);
+                              PromisedQueryPtr query, OnSuccess on_success, bool allow_unknown_user = false);
 
   template <class OnSuccess>
   void resolve_sticker_set(const td::string &sticker_set_name, PromisedQueryPtr query, OnSuccess on_success);
@@ -586,7 +597,8 @@ class Client final : public WebhookActor::Callback {
   td::Result<object_ptr<td_api::inputMessageInvoice>> get_input_message_invoice(const Query *query) const;
 
   static object_ptr<td_api::messageSendOptions> get_message_send_options(bool disable_notification,
-                                                                         bool protect_content, int64 effect_id);
+                                                                         bool protect_content,
+                                                                         bool allow_paid_broadcast, int64 effect_id);
 
   static td::Result<td::vector<object_ptr<td_api::formattedText>>> get_poll_options(const Query *query);
 
@@ -675,10 +687,14 @@ class Client final : public WebhookActor::Callback {
   td::Status process_create_invoice_link_query(PromisedQueryPtr &query);
   td::Status process_get_star_transactions_query(PromisedQueryPtr &query);
   td::Status process_refund_star_payment_query(PromisedQueryPtr &query);
+  td::Status process_edit_user_star_subscription_query(PromisedQueryPtr &query);
+  td::Status process_get_available_gifts_query(PromisedQueryPtr &query);
+  td::Status process_send_gift_query(PromisedQueryPtr &query);
   td::Status process_set_game_score_query(PromisedQueryPtr &query);
   td::Status process_get_game_high_scores_query(PromisedQueryPtr &query);
   td::Status process_answer_web_app_query_query(PromisedQueryPtr &query);
   td::Status process_answer_inline_query_query(PromisedQueryPtr &query);
+  td::Status process_save_prepared_inline_message_query(PromisedQueryPtr &query);
   td::Status process_answer_callback_query_query(PromisedQueryPtr &query);
   td::Status process_answer_shipping_query_query(PromisedQueryPtr &query);
   td::Status process_answer_pre_checkout_query_query(PromisedQueryPtr &query);
@@ -689,6 +705,7 @@ class Client final : public WebhookActor::Callback {
   td::Status process_edit_chat_subscription_invite_link_query(PromisedQueryPtr &query);
   td::Status process_revoke_chat_invite_link_query(PromisedQueryPtr &query);
   td::Status process_get_business_connection_query(PromisedQueryPtr &query);
+  td::Status process_set_user_emoji_status_query(PromisedQueryPtr &query);
   td::Status process_get_chat_query(PromisedQueryPtr &query);
   td::Status process_set_chat_photo_query(PromisedQueryPtr &query);
   td::Status process_delete_chat_photo_query(PromisedQueryPtr &query);
@@ -812,6 +829,8 @@ class Client final : public WebhookActor::Callback {
 
   static void fail_query_with_error(PromisedQueryPtr &&query, object_ptr<td_api::error> error,
                                     td::Slice default_message = td::Slice());
+
+  static bool is_special_error_code(int32 error_code);
 
   class JsonUpdates;
   void do_get_updates(int32 offset, int32 limit, int32 timeout, PromisedQueryPtr query);
@@ -965,6 +984,7 @@ class Client final : public WebhookActor::Callback {
     bool is_automatic_forward = false;
     bool is_topic_message = false;
     bool is_from_offline = false;
+    bool is_scheduled = false;
     mutable bool is_content_changed = false;
   };
 
@@ -1110,6 +1130,8 @@ class Client final : public WebhookActor::Callback {
 
   void add_new_pre_checkout_query(object_ptr<td_api::updateNewPreCheckoutQuery> &&query);
 
+  void add_update_purchased_paid_media(object_ptr<td_api::updatePaidMediaPurchased> &&query);
+
   void add_new_custom_event(object_ptr<td_api::updateNewCustomEvent> &&event);
 
   void add_new_custom_query(object_ptr<td_api::updateNewCustomQuery> &&query);
@@ -1155,6 +1177,7 @@ class Client final : public WebhookActor::Callback {
     BusinessMessage,
     EditedBusinessMessage,
     BusinessMessagesDeleted,
+    PurchasedPaidMedia,
     Size
   };
 
